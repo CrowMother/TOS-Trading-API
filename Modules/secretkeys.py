@@ -6,33 +6,45 @@ APP_KEY = ""
 SECRET = ""
 
 def set_secrets():
-    dotenv_path = os.path.join('config', '.env')
     global APP_KEY, SECRET
+    # Get the current directory of the script
+    current_directory = os.path.dirname(os.path.abspath(__file__))
+
+    # Construct the path to the .env file located in the config directory
+    dotenv_path = os.path.join(current_directory, '..', 'config', '.env')
+
+    # Load the .env file
     load_dotenv(dotenv_path)
 
     APP_KEY = os.getenv('APP_KEY')
     SECRET = os.getenv('SECRET')
-    check_set()
+    check_set(APP_KEY, 'a')
+    check_set(SECRET, 's')
 
 
 def get_app_key():
-    if_empty()
     global APP_KEY
+    if_empty(APP_KEY)
     return APP_KEY
 
 def get_secret():
-    if_empty()
     global SECRET
+    if_empty(SECRET)
     return SECRET
 
-def if_empty():
-    global APP_KEY, SECRET
-    if( APP_KEY or SECRET == ""):
+def if_empty(key):
+    if(key == ""):
         set_secrets()
 
-def check_set():
-    global APP_KEY, SECRET
-    if( APP_KEY or SECRET == ""):
-        universal.error_code("APP_KEY or SECRET not set from .env file. (check config folder for proper env file)")
+def check_set(key, type):
+    if(key == ""):
+        if(type == 'a'):
+            universal.error_code("APP_KEY not set from .env file. (check config folder for proper env file)")
+        else:
+            universal.error_code("SECRET not set from .env file. (check config folder for proper env file)")
+
     else:
-        universal.okay_code("APP_KEY and SECRET set!")
+        if(type == 'a'):
+            universal.okay_code("APP_KEY set: " + key)
+        else:
+            universal.okay_code("SECRET set: " + key)
