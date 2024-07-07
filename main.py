@@ -6,6 +6,5 @@ universal.error_code("test")
 client = schwabdev.Client(secretkeys.get_app_key(), secretkeys.get_secret())  #create a client
 
 client.update_tokens_auto() #start the auto access token updater
-
 print(client.account_linked().json()) #make api calls 
 
