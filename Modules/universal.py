@@ -1,11 +1,13 @@
 
-
+#red error codes
 def error_code(text):
     print_combined("[ERROR]:", text, "31")
 
+#green Okay
 def okay_code(text):
     print_combined("[OKAY]:", text, "32")
 
+#yellow warnings
 def warning_code(text):
     print_combined("[WARNING]:", text, "33")
     
