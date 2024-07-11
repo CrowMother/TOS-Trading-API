@@ -1,6 +1,6 @@
 #important!! for security of Secret keys
 .env
-
+.tokens.json
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
