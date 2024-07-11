@@ -17,5 +17,7 @@ def main(client):
     streamer.set_streamer(client)
     #streamer.start_level_one_equity_stream(client)
     streamer.start_account_tracking(client)
-    
+    #to do
+    #add data streaming to a webserver or another web application to get real time data from client to server
+    #
 main(client)
