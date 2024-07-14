@@ -37,14 +37,17 @@ def if_empty(key):
         set_secrets()
 
 def check_set(key, type):
-    if(key == ""):
-        if(type == 'a'):
-            universal.error_code("APP_KEY not set from .env file. (check config folder for proper env file)")
-        else:
-            universal.error_code("SECRET not set from .env file. (check config folder for proper env file)")
+    try:
+        if(key == ""):
+            if(type == 'a'):
+                universal.error_code("APP_KEY not set from .env file. (check config folder for proper env file)")
+            else:
+                universal.error_code("SECRET not set from .env file. (check config folder for proper env file)")
 
-    else:
-        if(type == 'a'):
-            universal.okay_code("APP_KEY set: " + key)
         else:
-            universal.okay_code("SECRET set: " + key)
+            if(type == 'a'):
+                universal.okay_code("APP_KEY set: " + key)
+            else:
+                universal.okay_code("SECRET set: " + key)
+    except:
+        universal.error_code("APP KEY and or SECRET not found in .env")

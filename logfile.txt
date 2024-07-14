@@ -246,3 +246,7 @@
 [2024-07-11 11:11:38] {"notify":[{"heartbeat":"1720714298712"}]}
 [2024-07-11 11:11:48] {"notify":[{"heartbeat":"1720714308714"}]}
 [2024-07-11 11:11:58] {"notify":[{"heartbeat":"1720714318716"}]}
+[2024-07-14 15:18:27] {"response":[{"service":"ADMIN","command":"LOGIN","requestid":"1","SchwabClientCorrelId":"98eb4ea0-addf-6e1b-ee79-ddb3d5001d30","timestamp":1720988306795,"content":{"code":0,"msg":"server=s0634dc6-3;status=NP"}}]}
+[2024-07-14 15:18:27] {"notify":[{"heartbeat":"1720988306830"}]}
+[2024-07-14 15:18:27] {"response":[{"service":"ACCT_ACTIVITY","command":"SUBS","requestid":"0","SchwabClientCorrelId":"98eb4ea0-addf-6e1b-ee79-ddb3d5001d30","timestamp":1720988306830,"content":{"code":0,"msg":"SUBS command succeeded"}}]}
+[2024-07-14 15:18:27] {"data":[{"service":"ACCT_ACTIVITY", "timestamp":1720988306856,"command":"SUBS","content":[{"seq":0,"key":"Account Activity","1":"","2":"SUBSCRIBED","3":""}]}]}
