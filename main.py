@@ -15,9 +15,6 @@ print(client.account_linked().json()) #make api calls
 #start of the main close
 def main(client):
     streamer.set_streamer(client)
-    #streamer.start_level_one_equity_stream(client)
+    #streaming of real time account data with 
     streamer.start_account_tracking(client)
-    #to do
-    #add data streaming to a webserver or another web application to get real time data from client to server
-    #
 main(client)
