@@ -24,7 +24,7 @@ def my_handler(message):
     with app.app_context():
         send_trade(message)
 
-# Tracking for stock pricing of AMD
+# Tracking for stock pricing of AMD and intel
 def start_level_one_equity_stream(client):
     streamer.start(my_handler)
     client.stream.send(client.stream.level_one_equities("AMD,INTC", "0,1,2,3,4,5,6,7,8"))
@@ -34,7 +34,7 @@ def start_level_one_equity_stream(client):
 # Tracking of account data 
 def start_account_tracking(client):
     streamer.start(my_handler)
-    client.stream.send(client.stream.account_activity("Account Activity", "0,1,2,3,4,5,6,7,8"))
+    client.stream.send(client.stream.account_activity("Account Activity", "0,1,2,3,4,"))
     
     
 

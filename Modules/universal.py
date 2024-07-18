@@ -24,3 +24,7 @@ def print_colored(text, color_code):
 
 def time_stamp():
     return datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+
+
+#reading configuration file for setting variables
