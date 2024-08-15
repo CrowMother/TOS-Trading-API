@@ -54,13 +54,13 @@ def my_handler(message):
     universal.okay_code(message)
     logger.write_to_log(message)
     
-    message_parsed = parse_message(message)
-    data = datafy(message_parsed)
-    print(data)
+    # message_parsed = parse_message(message)
+    # data = datafy(message_parsed)
+    # print(data)
     # Ensure that send_trade is called correctly within the application context
     
     with app.app_context():
-        send_trade(data)
+        send_trade(message)
 
 # Tracking for stock pricing of AMD and intel
 def start_level_one_equity_stream(client):
