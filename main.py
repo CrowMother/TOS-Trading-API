@@ -14,7 +14,10 @@ print(client.account_linked().json()) #make api calls
 
 #start of the main close
 def main(client):
-    streamer.set_streamer(client)
-    #streaming of real time account data with 
-    streamer.start_account_tracking(client)
+    #send test data
+    streamer.send_test_trade_order()
+    
+    # streamer.set_streamer(client)
+    # #streaming of real time account data with 
+    # streamer.start_account_tracking(client)
 main(client)
