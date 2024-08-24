@@ -7,7 +7,7 @@ SECRET = ""
 APP_URL = ""
 
 def set_secrets():
-    global APP_KEY, SECRET
+    global APP_KEY, SECRET, APP_URL
     # Get the current directory of the script
     current_directory = os.path.dirname(os.path.abspath(__file__))
 
@@ -19,10 +19,10 @@ def set_secrets():
 
     APP_KEY = os.getenv('APP_KEY')
     SECRET = os.getenv('SECRET')
-    SERVER_URL = os.getenv('SERVER_URL')
+    APP_URL = os.getenv('SERVER_URL')
     check_set(APP_KEY, 'a')
     check_set(SECRET, 's')
-    check_set(SERVER_URL, 'u')
+    check_set(APP_URL, 'u')
 
 
 def get_app_key():
@@ -38,6 +38,7 @@ def get_secret():
 def get_url():
     global APP_URL
     if_empty(APP_URL)
+    return APP_URL
 
 def if_empty(key):
     if(key == ""):

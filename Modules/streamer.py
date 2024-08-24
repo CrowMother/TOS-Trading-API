@@ -1,6 +1,7 @@
 import schwabdev
 from Modules import universal
 from Modules import logger
+from Modules import secretkeys
 import time
 from flask import Flask, request, jsonify
 import requests
@@ -9,6 +10,8 @@ import json
 
 app = Flask(__name__)
 streamer = None
+SERVER_URL = secretkeys.get_url()
+print(SERVER_URL)
 
 def remove_specific_characters(input_string, characters_to_remove):
     return ''.join([char for char in input_string if char not in characters_to_remove])
@@ -79,11 +82,12 @@ def start_account_tracking(client):
 # Get request to server to tell server we have new data to send
 @app.route('/send-trade', methods=["GET"])
 def send_trade(data):
+    global SERVER_URL
     # Data to be sent to the other server
 
     # Post request to the other server
     try:
-        response = requests.post('http://localhost:5000/receive-trade', json=data)
+        response = requests.post(SERVER_URL, json=data)
         # Return the response from the other server
         return jsonify({'status': 'data sent', 'response': response.json()})
     except requests.exceptions.RequestException as e:
