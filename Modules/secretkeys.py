@@ -4,6 +4,7 @@ from Modules import universal
 
 APP_KEY = ""
 SECRET = ""
+APP_URL = ""
 
 def set_secrets():
     global APP_KEY, SECRET
@@ -18,8 +19,10 @@ def set_secrets():
 
     APP_KEY = os.getenv('APP_KEY')
     SECRET = os.getenv('SECRET')
+    SERVER_URL = os.getenv('SERVER_URL')
     check_set(APP_KEY, 'a')
     check_set(SECRET, 's')
+    check_set(SERVER_URL, 'u')
 
 
 def get_app_key():
@@ -31,6 +34,10 @@ def get_secret():
     global SECRET
     if_empty(SECRET)
     return SECRET
+
+def get_url():
+    global APP_URL
+    if_empty(APP_URL)
 
 def if_empty(key):
     if(key == ""):
@@ -47,6 +54,8 @@ def check_set(key, type):
         else:
             if(type == 'a'):
                 universal.okay_code("APP_KEY set: " + key)
+            elif(type == 'u'):
+                universal.okay_code(f"SERVER_URL set: {key}")
             else:
                 universal.okay_code("SECRET set: " + key)
     except:
