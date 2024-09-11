@@ -1,7 +1,8 @@
 import json
 from Modules import streamer
+from Modules import universal
 
-order_data_map = {}
+ORDER_DATA_MAP = {}
 
 REQUIRED_FIELDS = [
     "SchwabOrderID", "AccountNumber", "UnderlyingSymbol", "StrikePrice",
@@ -9,7 +10,7 @@ REQUIRED_FIELDS = [
 ]
 
 def data_in(data):
-    global order_data_map
+    
     #print(data)
     """ #check if the heartbeat exists
     heartBeat = check_heart_beat(data)
@@ -22,112 +23,83 @@ def data_in(data):
     
     #if not heart beat parse for data
     data = parse_json(data)
-    #grab data needed to add to order data map
+    #format out un-needed data
+    data = format_data(data)
+    Load_order_data_map(data)
+    check_and_send_all_orders()
 
 
-    completeOrders = check_data_map_completeness(order_data_map) 
-    return completeOrders
+def check_and_send_all_orders():
+    # Iterate through all SchwabOrderIDs in ORDER_DATA_MAP
+    for schwabOrderID, order_data in list(ORDER_DATA_MAP.items()):
+        # Check if all required fields are present for each order
+        if all(field in order_data and order_data[field] is not None and order_data[field] != "" for field in REQUIRED_FIELDS):
+            # All required fields are present, call the send function
+    #change this line to the send function for sending the data to the server
+            print(order_data)
+            
+            # After sending, delete the entry from ORDER_DATA_MAP
+            del ORDER_DATA_MAP[schwabOrderID]
+            print(f"Data sent and deleted for SchwabOrderID: {schwabOrderID}")
+        else:
+            # Some fields are still missing
+            missing_fields = [field for field in REQUIRED_FIELDS if field not in order_data or order_data[field] is None]
+            print(f"Missing fields for SchwabOrderID {schwabOrderID}: {missing_fields}")
 
+
+
+def Load_order_data_map(data):
+    # Extract SchwabOrderID first to use as the key
+    schwabOrderID = data.get('SchwabOrderID')
+    
+    if not schwabOrderID:
+        print("Missing SchwabOrderID, cannot store data.")
+        return
+    
+    # If the order ID already exists in the map, fetch existing data, else create a new dictionary
+    order_data = ORDER_DATA_MAP.get(schwabOrderID, {})
+    
+    # Update the existing data with any new fields provided in this data batch
+    for field in REQUIRED_FIELDS:
+        # Only update the field if it's provided and not None
+        if field in data and data[field] is not None:
+            order_data[field] = data[field]
+    
+    # Store or update the order data in the map
+    ORDER_DATA_MAP[schwabOrderID] = order_data
+
+
+
+#checks for heart beat for updating status of applications
 def check_heart_beat(json_data):
-    data = json.loads(json_data)
-    for entry in data.get('notify', []):
-            heartbeat = entry.get('heartbeat', 'N/A')
-            return heartbeat
-
-def update_order_data_map(json_data):
-    SchwabOrderID = json_data.get("")
-
-
-""" def parse_json(json_data):
-    global order_data_map
     try:
-        # Load the outer JSON data
         data = json.loads(json_data)
-
-        for item in data.get('data', []):
-            for content in item.get('content', []):
-                # The '3' field contains a JSON string, so we need to parse it
-                content_data = json.loads(content.get('3', '{}'))  # Parse the JSON string into a dictionary
-                
-                #parse into the nested json section
-                nested_json_string = data['data'][0]['content'][0]['3']
-                nested_data = json.loads(nested_json_string)  # Parse the nested JSON string
-
-            # Extract values from the parsed JSON
-                #Extract Order ID
-                schwab_order_id = content_data.get('SchwabOrderID', 'N/A')
-                #Extract Account Number
-                account_number = content_data.get('AccountNumber', 'N/A')
-                # Extract the symbol
-                symbol = nested_data['BaseEvent']['OrderCreatedEventEquityOrder']['Order']['Order']['AssetOrderEquityOrderLeg']['OrderLegs'][0]['Security']['Symbol']
-                # Extract the Strike
-                strike_price = nested_data['BaseEvent']['OrderCreatedEventEquityOrder']['Order']['Order']['AssetOrderEquityOrderLeg']['OrderLegs'][0]['Security']['OptionsSecurityInfo']['StrikePrice']['lo']
-                # Extract options quote (Call or Put)
-                options_quote = nested_data['BaseEvent']['OrderCreatedEventEquityOrder']['Order']['Order']['AssetOrderEquityOrderLeg']['OrderLegs'][0]['QuoteOnOrderAcceptance']['OptionsQuote']['PutCallCode']
-                # Extract Option Expiry Date
-                option_expiry_date = nested_data['BaseEvent']['OrderCreatedEventEquityOrder']['Order']['Order']['AssetOrderEquityOrderLeg']['OrderLegs'][0]['Security']['OptionsSecurityInfo']['OptionExpiryDate']['DateTimeString']
-                # Extract Execution Price
-                #find this value
-                execution_price = "N/A"
-                # Extract OpenClosePositionCode
-                open_close_position_code = nested_data['BaseEvent']['OrderCreatedEventEquityOrder']['Order']['Order']['AssetOrderEquityOrderLeg']['OrderLegs'][0]['EquityOrderLeg']['EquityOptionsOrderLeg']['OpenClosePositionCode']
+        for entry in data.get('notify', []):
+                heartbeat = entry.get('heartbeat', 'N/A')
+                return heartbeat
+    except:
+        return None
 
 
 
-                # Store or update the data in order_data_map
-                if schwab_order_id not in order_data_map:
-                    order_data_map[schwab_order_id] = {
-                        "SchwabOrderID": schwab_order_id,
-                        "AccountNumber": account_number,
-                        "Symbol": symbol,
-                        "strikePrice": strike_price,
-                        "OptionsQuote": options_quote,
-                        "OptionExpiryDate": option_expiry_date,
-                        "ExecutionPrice": execution_price,
-                        "OpenClosePositionCode": open_close_position_code
-                    }
-                else:
-                    # Update only if new data is provided
-                    order_data_map[schwab_order_id].update({
-                        "Symbol": symbol if symbol != 'N/A' else order_data_map[schwab_order_id]["Symbol"],
-                        "strikePrice": strike_price if strike_price != 'N/A' else order_data_map[schwab_order_id]["strikePrice"],
-                        "OptionsQuote": options_quote if options_quote != 'N/A' else order_data_map[schwab_order_id]["OptionsQuote"],
-                        "OptionExpiryDate": option_expiry_date if option_expiry_date != 'N/A' else order_data_map[schwab_order_id]["OptionExpiryDate"],
-                        "ExecutionPrice": execution_price if execution_price != 'N/A' else order_data_map[schwab_order_id]["ExecutionPrice"],
-                        "OpenClosePositionCode": open_close_position_code if open_close_position_code != 'N/A' else order_data_map[schwab_order_id]["OpenClosePositionCode"]
-                    })
-
-        return order_data_map
-    except json.JSONDecodeError as e:
-        print(f"Error decoding JSON: {e}")
-        return ""
-    except Exception as e:
-        print(f"An error occurred: {e}")
-        return "" """
+def format_data(data):
+    print(data)
+    data['AccountNumber'] = integerize(data.get('AccountNumber'))
+    data['LifecycleSchwabOrderID'] = integerize(data.get('LifecycleSchwabOrderID'))
+    data['StrikePrice'] = integerize(data.get('StrikePrice'))
+    data['OptionExpiryDate'] = format_date(data.get('OptionExpiryDate'))
+    data['SchwabOrderID'] = integerize(data.get('SchwabOrderID'))
+    data['OptionsQuote'] = data.get('OptionsQuote').split(":", 1)[1]
+    print("data parsed Correctly")
+    return data
 
 def parse_json(json_data):
     json_data = remove_specific_characters(json_data, "\"][}{\\//")
-    manual_json_parse(json_data)
+    json_data = manual_json_parse(json_data)
     return json_data
-
-
-
     
 # Function to check if an order has all required fields
-def is_order_complete(order):
-    return all(order.get(field, None) is not None and order[field] != 'N/A' for field in REQUIRED_FIELDS)
 
-# Function to check completeness of all orders in the data map
-def check_data_map_completeness(order_data_map):
-    complete_orders = []
-    for order_id, order in order_data_map.items():
-        if is_order_complete(order):
-            complete_orders.append(order_id)
-    return complete_orders
-
-
-def datapoint_get(context, key):
-    return context.get(key, 'N/A')
 
 def manual_json_parse(json_data):
     parsed_json = {}
@@ -168,3 +140,29 @@ def remove_specific_characters(json_data, chars):
        json_data = json_data.replace(char, "")
     return json_data
     
+#converts strings to integer values
+def integerize(string_data):
+    if string_data is not None:
+        filtered_string = ''.join(filter(str.isdigit, string_data))
+        return int(filtered_string) if filtered_string else None
+    return ""
+
+def format_date(input):
+    #2024-07-19 00
+    if input is not None:
+        universal.okay_code(input)
+        #remove hours
+        date = universal.split_string_at_char(input, " ", 0)
+        
+        #sperate the time stamp
+        year = universal.split_string_at_char(date, "-", 0)
+        month = universal.split_string_at_char(date, "-", 1)
+        day = universal.split_string_at_char(date, "-", 2)
+        #this is the lazy approach so fix in the future if needed
+        year = universal.split_string_at_char(date, "0", 1)
+        year = remove_specific_characters(year, "-")
+        return(f"{month}/{day}/{year}")
+    return ""
+
+
+

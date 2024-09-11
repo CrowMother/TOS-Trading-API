@@ -29,5 +29,13 @@ def time_stamp():
 
 #reading configuration file for setting variables
 
-
+def split_string_at_char(inputString, splitChar, SectionNum):
+    try:
+        splitSections = str(inputString).split(splitChar)
+        if len(splitSections) > SectionNum:
+            return splitSections[SectionNum]
+        else:
+            return ""
+    except ValueError as e:
+        error_code(f"Value unable to be split and or returned:{str(inputString)}. Error : {str(e)}")
 
