@@ -12,17 +12,16 @@ REQUIRED_FIELDS = [
 def data_in(data):
     
     #print(data)
-    """ #check if the heartbeat exists
-    heartBeat = check_heart_beat(data)
-    #if heartbeat then return
-    
-    #check if there is a heartbeat
-    if heartBeat is not None:
-        print(f"heartBeat: {heartBeat}")
-        return heartBeat """
+
     
     #if not heart beat parse for data
     data = parse_json(data)
+    #check for heart beat and login
+    if len(data) < 3:
+        #send a heartbeat
+        print("heart Beat")
+        return
+    
     #format out un-needed data
     data = format_data(data)
     Load_order_data_map(data)
@@ -37,7 +36,7 @@ def check_and_send_all_orders():
             # All required fields are present, call the send function
     #change this line to the send function for sending the data to the server
             print(order_data)
-            
+            streamer.send_trade_data_in_background(order_data)
             # After sending, delete the entry from ORDER_DATA_MAP
             del ORDER_DATA_MAP[schwabOrderID]
             print(f"Data sent and deleted for SchwabOrderID: {schwabOrderID}")

@@ -55,7 +55,7 @@ def my_handler(data):
     #        'data': message}
     #{"response":[{"service":"ADMIN","command":"LOGIN","requestid":"0","SchwabClientCorrelId":"369e8458-2d9d-0d84-828a-03a694c658ca","timestamp":1722003493339,"content":{"code":0,"msg":"server=s0635dc6-4;status=NP"}}]}
 
-    #universal.okay_code(message)
+    universal.okay_code(data)
     logger.write_to_log(data)
     
     #parse data that we need
@@ -63,7 +63,7 @@ def my_handler(data):
 
     logger.write_to_log(f"Post data Processing: {data}")
     # Ensure that send_trade is called correctly within the application context\
-
+    return
 #uncomment to send to server
     # if data is not None:
     #     with app.app_context():
@@ -78,17 +78,51 @@ def start_level_one_equity_stream(client):
 
 # Tracking of account data 
 def start_account_tracking(client):
-    streamer.start(my_handler)
-    #move to the following to preserve data streaming, figure out custom handling of data
-    #streamer.start_automatic(receiver=print, after_hours=False, pre_hours=False)
-    client.stream.send(client.stream.account_activity("Account Activity", "0,1,2,3"))
-    print("tracker Online")
+    if client is None:
+        universal.error_code("Error Client is a None Type")
+    else:
+        streamer.start(my_handler)
+        client.stream.send(client.stream.account_activity("Account Activity", "0,1,2,3,4"))
     
     
+def send_trade_data_in_background(data):
+    with app.app_context():
+        try:
+            response = requests.post(f"{SERVER_URL}/send-trade-data", json=data)
+            response.raise_for_status()  # Handle HTTP errors
+            return {'status': 'data sent', 'response': response.json()}
+        except requests.exceptions.RequestException as e:
+            universal.error_code(f"Connection with server lost! {str(e)}")
+            return {'status': 'error', 'message': str(e)}
 
-# send data to the server
-@app.route('/send-trade', methods=["GET"])
-def send_trade(data):
+# flask function to send data to the server
+@app.route('/send-trade-data', methods=["POST"])
+def send_trade_data():
+    # Extract the JSON data sent with the request
+    data = request.get_json()  # This gets the data from the request body
+
+    if not data:
+        return jsonify({'status': 'error', 'message': 'No data received'}), 400
+    
+    try:
+        print(f"Data to be sent: {data}")
+        # Post request to the other server
+        response = requests.post(SERVER_URL, json=data)
+        response.raise_for_status()  # Ensure any HTTP errors are raised
+        
+        # Return the response from the other server
+        return jsonify({'status': 'data sent', 'response': response.json()}), 200
+    
+    except requests.exceptions.RequestException as e:
+        # Handle any exceptions that occur during the POST request
+        universal.error_code("Connection with server lost!")
+        
+        # Design handling for what to do with data that couldn't be sent
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+    
+#send heart beat notification to server
+@app.route('/send-heart', methods=["GET"])
+def send_heart(data):
     global SERVER_URL
     # Post request to the other server
     try:
