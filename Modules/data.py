@@ -6,7 +6,7 @@ ORDER_DATA_MAP = {}
 
 REQUIRED_FIELDS = [
     "SchwabOrderID", "AccountNumber", "UnderlyingSymbol", "StrikePrice",
-    "OptionsQuote", "OptionExpiryDate", "ExecutionPrice", "OpenClosePositionCode"
+    "OptionsQuote", "OptionExpiryDate", "ExecutionPrice", "EquityOrderLeg", "Quantity"
 ]
 
 def data_in(data):
@@ -31,18 +31,20 @@ def data_in(data):
 def check_and_send_all_orders():
     # Iterate through all SchwabOrderIDs in ORDER_DATA_MAP
     for schwabOrderID, order_data in list(ORDER_DATA_MAP.items()):
-        # Check if all required fields are present for each order
-        if all(field in order_data and order_data[field] is not None and order_data[field] != "" for field in REQUIRED_FIELDS):
+        # Check if all required fields are present and non-empty
+        missing_fields = [field for field in REQUIRED_FIELDS 
+                          if field not in order_data or order_data[field] is None or order_data[field] == ""]
+        
+        if not missing_fields:
             # All required fields are present, call the send function
-    #change this line to the send function for sending the data to the server
+            # Replace with your actual function to send data
             print(order_data)
             streamer.send_trade_data_in_background(order_data)
             # After sending, delete the entry from ORDER_DATA_MAP
             del ORDER_DATA_MAP[schwabOrderID]
             print(f"Data sent and deleted for SchwabOrderID: {schwabOrderID}")
         else:
-            # Some fields are still missing
-            missing_fields = [field for field in REQUIRED_FIELDS if field not in order_data or order_data[field] is None]
+            # Some fields are still missing, print them
             print(f"Missing fields for SchwabOrderID {schwabOrderID}: {missing_fields}")
 
 
@@ -61,7 +63,7 @@ def Load_order_data_map(data):
     # Update the existing data with any new fields provided in this data batch
     for field in REQUIRED_FIELDS:
         # Only update the field if it's provided and not None
-        if field in data and data[field] is not None:
+        if field in data and data[field] is not None and data[field] != "":
             order_data[field] = data[field]
     
     # Store or update the order data in the map
@@ -88,7 +90,20 @@ def format_data(data):
     data['StrikePrice'] = integerize(data.get('StrikePrice'))
     data['OptionExpiryDate'] = format_date(data.get('OptionExpiryDate'))
     data['SchwabOrderID'] = integerize(data.get('SchwabOrderID'))
-    data['OptionsQuote'] = data.get('OptionsQuote').split(":", 1)[1]
+    data['Quantity'] = integerize(data.get('Quantity'))
+    data['ExecutionPrice'] = integerize(data.get('ExecutionPrice'))
+    
+    if 'OptionsQuote' in data and data['OptionsQuote'] is not None:
+        # Check if the split works correctly (and avoid IndexError)
+        if ":" in data['OptionsQuote']:
+            data['OptionsQuote'] = data.get('OptionsQuote').split(":", 1)[1]
+
+    if 'EquityOrderLeg' in data and data['EquityOrderLeg'] is not None:
+        # Check if the split works correctly (and avoid IndexError)
+        equity_order_leg_parts = data['EquityOrderLeg'].split(":")
+        if len(equity_order_leg_parts) >= 3:
+            data['EquityOrderLeg'] = equity_order_leg_parts[2]
+
     print("data parsed Correctly")
     return data
 
@@ -141,14 +156,14 @@ def remove_specific_characters(json_data, chars):
     
 #converts strings to integer values
 def integerize(string_data):
-    if string_data is not None:
+    if string_data is not None and string_data != "":
         filtered_string = ''.join(filter(str.isdigit, string_data))
         return int(filtered_string) if filtered_string else None
     return ""
 
 def format_date(input):
     #2024-07-19 00
-    if input is not None:
+    if input is not None and input != "":
         universal.okay_code(input)
         #remove hours
         date = universal.split_string_at_char(input, " ", 0)
@@ -164,4 +179,6 @@ def format_date(input):
     return ""
 
 
+def calculate_price(value, quantity):
+    return (value / quantity)
 
