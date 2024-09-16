@@ -88,6 +88,7 @@ def start_account_tracking(client):
 def send_trade_data_in_background(data):
     with app.app_context():
         try:
+
             print(f"sending data to: {SERVER_URL}")
             response = requests.post(f"{SERVER_URL}", json=data)
             response.raise_for_status()  # Handle HTTP errors
@@ -97,29 +98,29 @@ def send_trade_data_in_background(data):
             return {'status': 'error', 'message': str(e)}
 
 # flask function to send data to the server
-@app.route('/send-trade-data', methods=["POST"])
-def send_trade_data():
-    # Extract the JSON data sent with the request
-    data = request.get_json()  # This gets the data from the request body
+# @app.route('/send-trade-data', methods=["POST"])
+# def send_trade_data():
+#     # Extract the JSON data sent with the request
+#     data = request.get_json()  # This gets the data from the request body
 
-    if not data:
-        return jsonify({'status': 'error', 'message': 'No data received'}), 400
+#     if not data:
+#         return jsonify({'status': 'error', 'message': 'No data received'}), 400
     
-    try:
-        print(f"Data to be sent: {data}")
-        # Post request to the other server
-        response = requests.post(SERVER_URL, json=data)
-        response.raise_for_status()  # Ensure any HTTP errors are raised
+#     try:
+#         print(f"Data to be sent: {data}")
+#         # Post request to the other server
+#         response = requests.post(SERVER_URL, json=data)
+#         response.raise_for_status()  # Ensure any HTTP errors are raised
         
-        # Return the response from the other server
-        return jsonify({'status': 'data sent', 'response': response.json()}), 200
+#         # Return the response from the other server
+#         return jsonify({'status': 'data sent', 'response': response.json()}), 200
     
-    except requests.exceptions.RequestException as e:
-        # Handle any exceptions that occur during the POST request
-        universal.error_code("Connection with server lost!")
+#     except requests.exceptions.RequestException as e:
+#         # Handle any exceptions that occur during the POST request
+#         universal.error_code("Connection with server lost!")
         
-        # Design handling for what to do with data that couldn't be sent
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+#         # Design handling for what to do with data that couldn't be sent
+#         return jsonify({'status': 'error', 'message': str(e)}), 500
     
 #send heart beat notification to server
 @app.route('/send-heart', methods=["GET"])
@@ -152,6 +153,5 @@ def send_test_trade_order():
     ]
     
     for message in testList:
-        time.sleep(1)
         # Extract the JSON part by removing the timestamp
         my_handler(message)
