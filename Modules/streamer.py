@@ -88,7 +88,7 @@ def start_account_tracking(client):
 def send_trade_data_in_background(data):
     with app.app_context():
         try:
-            response = requests.post(f"{SERVER_URL}/send-trade-data", json=data)
+            response = requests.post(f"{SERVER_URL}", json=data)
             response.raise_for_status()  # Handle HTTP errors
             return {'status': 'data sent', 'response': response.json()}
         except requests.exceptions.RequestException as e:
