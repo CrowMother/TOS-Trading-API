@@ -6,7 +6,7 @@ ORDER_DATA_MAP = {}
 
 REQUIRED_FIELDS = [
     "SchwabOrderID", "AccountNumber", "UnderlyingSymbol", "StrikePrice",
-    "OptionsQuote", "OptionExpiryDate", "ExecutionPrice", "EquityOrderLeg", "Quantity"
+    "OptionsQuote", "OptionExpiryDate", "ExecutionPrice", "OpenClosePositionCode", "Quantity"
 ]
 
 def data_in(data):
@@ -98,11 +98,11 @@ def format_data(data):
         if ":" in data['OptionsQuote']:
             data['OptionsQuote'] = data.get('OptionsQuote').split(":", 1)[1]
 
-    if 'EquityOrderLeg' in data and data['EquityOrderLeg'] is not None:
+    if 'OpenClosePositionCode' in data and data['OpenClosePositionCode'] is not None:
         # Check if the split works correctly (and avoid IndexError)
-        equity_order_leg_parts = data['EquityOrderLeg'].split(":")
+        equity_order_leg_parts = data['OpenClosePositionCode'].split(":")
         if len(equity_order_leg_parts) >= 3:
-            data['EquityOrderLeg'] = equity_order_leg_parts[2]
+            data['OpenClosePositionCode'] = equity_order_leg_parts[2]
 
     print("data parsed Correctly")
     return data
@@ -112,32 +112,32 @@ def parse_json(json_data):
     json_data = manual_json_parse(json_data)
     return json_data
     
-# Function to check if an order has all required fields
 
+
+# Function to check if an order has all required fields
 
 def manual_json_parse(json_data):
     parsed_json = {}
-    
-    # Remove leading/trailing whitespace and escape characters
+
+    # Step 1: Clean the data (ensure the JSON-like string is workable)
     cleaned_data = json_data.replace('\\"', '"').replace("\\", "")
     
-    # Split data into segments for each key-value pair
-    sections = cleaned_data.split('{')
-    
-    # Traverse each section
-    for section in sections:
-        terms = section.split(",")
-        for term in terms:
-            # Further split on ':' to get key-value pairs
-            if ":" in term:
-                key, value = term.split(":", 1)
-                key = key.strip().replace('"', '')  # Clean key
-                value = value.strip().replace('"', '')  # Clean value
-                
-                # Check if the key matches any of the required fields
-                if any(required_field in key for required_field in REQUIRED_FIELDS):
-                    print(f"Found field: {key} -> {value}")
-                    parsed_json[key] = value
+    # Step 2: Manually search for each required field
+    for required_field in REQUIRED_FIELDS:
+        field_position = cleaned_data.find(required_field)
+        if field_position != -1:
+            # Extract the value for the found required field
+            # Assume the value follows after ':' and is either followed by a comma or a closing brace
+            start_index = field_position + len(required_field) + 1  # move past the key and the colon
+            end_index = cleaned_data.find(',', start_index)
+            if end_index == -1:
+                end_index = cleaned_data.find('}', start_index)
+            value = cleaned_data[start_index:end_index].strip()
+
+            # Clean the extracted value further
+            value = value.replace('"', '').strip()
+            parsed_json[required_field] = value
+            print(f"{required_field} -> {value}")
     
     print("_________________________________________________________")
     return parsed_json
