@@ -1,5 +1,4 @@
-import schwabdev
-import datetime
+
 from Modules import universal
 from Modules import logger
 from Modules import secretkeys
@@ -7,7 +6,7 @@ from Modules import data as Data
 import time
 from flask import Flask, request, jsonify
 import requests
-import json
+
 
 app = Flask(__name__)
 streamer = None
@@ -140,7 +139,7 @@ def send_heart(data):
 
 if __name__ == '__main__':
     # Start the Flask app
-    app.run(debug=True)
+     app.run(host="0.0.0.0", port=80, debug=True)
 
 
 
