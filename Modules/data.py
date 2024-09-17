@@ -84,7 +84,7 @@ def check_heart_beat(json_data):
 
 
 def format_data(data):
-    print(data)
+    #print(data)
     data['AccountNumber'] = integerize(data.get('AccountNumber'))
     data['LifecycleSchwabOrderID'] = integerize(data.get('LifecycleSchwabOrderID'))
     data['StrikePrice'] = integerize(data.get('StrikePrice'))
