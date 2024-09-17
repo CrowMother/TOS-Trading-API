@@ -72,7 +72,6 @@ def my_handler(data):
 def start_level_one_equity_stream(client):
     streamer.start(my_handler)
     client.stream.send(client.stream.level_one_equities("AMD,INTC", "0,1,2,3,4,5,6,7,8"))
-    time.sleep(60)
     streamer.stop()
 
 # Tracking of account data 
@@ -89,7 +88,6 @@ def send_trade_data_in_background(data):
         try:
 
             print(f"sending data to: {SERVER_URL}")
-            time.sleep(60)
             response = requests.post(f"{SERVER_URL}", json=data)
             response.raise_for_status()  # Handle HTTP errors
             return {'status': 'data sent', 'response': response.json()}

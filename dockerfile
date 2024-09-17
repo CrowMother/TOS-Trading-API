@@ -1,24 +1,26 @@
-# Use an official Python runtime as a base image
+# 1. Use an official Python runtime as a parent image
 FROM python:3.11-slim
 
-# Set the working directory in the container
+# 2. Set the working directory inside the container
 WORKDIR /app
 
-# Copy the requirements file into the container at /app
-COPY requirements.txt /app/
+# 3. Copy only the essential files into the container
+COPY main.py /app/
+COPY Modules/ /app/Modules/
 
-RUN pip install --upgrade pip
-# Install any Python dependencies
+# 4. Create a volume for the logfile
+VOLUME ["/app/logfile"]
+VOLUME ["/app/order_data"]
+
+# 5. Install any necessary Python packages (adjust this if you have a requirements.txt)
+COPY requirements.txt /app/
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of the application code into the container
-COPY . /app
+# 6. Install Gunicorn
+RUN pip install gunicorn
 
-# Expose the port the app runs on
-EXPOSE 80
+# 7. Expose the Flask port (default 5000)
+EXPOSE 5000
 
-# Define environment variables (optional)
-ENV SERVER_URL="http://nobelltrading.duckdns.org/trades"
-
-# Run the Flask application
+# 8. Command to run the application with Gunicorn and log configuration
 CMD ["python", "main.py"]
