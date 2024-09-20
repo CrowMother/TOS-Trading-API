@@ -10,9 +10,7 @@ REQUIRED_FIELDS = [
 ]
 
 def data_in(data):
-    
-    #print(data)
-
+    #rework heartbeat detection and remove heartbeats or print in a single statement 
     
     #if not heart beat parse for data
     data = parse_json(data)
@@ -48,7 +46,6 @@ def check_and_send_all_orders():
             print(f"Missing fields for SchwabOrderID {schwabOrderID}: {missing_fields}")
 
 
-
 def Load_order_data_map(data):
     # Extract SchwabOrderID first to use as the key
     schwabOrderID = data.get('SchwabOrderID')
@@ -68,8 +65,6 @@ def Load_order_data_map(data):
     
     # Store or update the order data in the map
     ORDER_DATA_MAP[schwabOrderID] = order_data
-
-
 
 #checks for heart beat for updating status of applications
 def check_heart_beat(json_data):
