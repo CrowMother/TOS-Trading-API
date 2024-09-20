@@ -1,5 +1,4 @@
-import schwabdev
-import datetime
+
 from Modules import universal
 from Modules import logger
 from Modules import secretkeys
@@ -7,7 +6,7 @@ from Modules import data as Data
 import time
 from flask import Flask, request, jsonify
 import requests
-import json
+
 
 app = Flask(__name__)
 streamer = None
@@ -19,7 +18,7 @@ def remove_specific_characters(input_string, characters_to_remove):
 
 def parse_message(message):
     try:
-        chars_to_remove = "\[]{\}\"\'"
+        chars_to_remove = "\[]}{\"\'"
         message = remove_specific_characters(message, chars_to_remove)
         mes_parts = message.split(",")
         #print(f"\nparts\n{mes_parts}")
@@ -55,7 +54,7 @@ def my_handler(data):
     #        'data': message}
     #{"response":[{"service":"ADMIN","command":"LOGIN","requestid":"0","SchwabClientCorrelId":"369e8458-2d9d-0d84-828a-03a694c658ca","timestamp":1722003493339,"content":{"code":0,"msg":"server=s0635dc6-4;status=NP"}}]}
 
-    #universal.okay_code(message)
+    universal.okay_code(data)
     logger.write_to_log(data)
     
     #parse data that we need
@@ -63,7 +62,7 @@ def my_handler(data):
 
     logger.write_to_log(f"Post data Processing: {data}")
     # Ensure that send_trade is called correctly within the application context\
-
+    return
 #uncomment to send to server
     # if data is not None:
     #     with app.app_context():
@@ -73,24 +72,62 @@ def my_handler(data):
 def start_level_one_equity_stream(client):
     streamer.start(my_handler)
     client.stream.send(client.stream.level_one_equities("AMD,INTC", "0,1,2,3,4,5,6,7,8"))
-    time.sleep(60)
     streamer.stop()
 
 # Tracking of account data 
 def start_account_tracking(client):
-    streamer.start(my_handler)
-    #move to the following to preserve data streaming, figure out custom handling of data
-    #streamer.start_automatic(receiver=print, after_hours=False, pre_hours=False)
-    client.stream.send(client.stream.account_activity("Account Activity", "0,1,2,3"))
+    if client is None:
+        universal.error_code("Error Client is a None Type")
+    else:
+        streamer.start(my_handler)
+        client.stream.send(client.stream.account_activity("Account Activity", "0,1,2,3,4"))
     
     
+def send_trade_data_in_background(data):
+    with app.app_context():
+        try:
 
-# send data to the server
-@app.route('/send-trade', methods=["GET"])
-def send_trade(data):
+            print(f"sending data to: {SERVER_URL}")
+            response = requests.post(f"{SERVER_URL}", json=data)
+            response.raise_for_status()  # Handle HTTP errors
+            return {'status': 'data sent', 'response': response.json()}
+        except requests.exceptions.RequestException as e:
+            universal.error_code(f"Connection with server lost! {str(e)}")
+            return {'status': 'error', 'message': str(e)}
+
+# flask function to send data to the server
+# @app.route('/send-trade-data', methods=["POST"])
+# def send_trade_data():
+#     # Extract the JSON data sent with the request
+#     data = request.get_json()  # This gets the data from the request body
+
+#     if not data:
+#         return jsonify({'status': 'error', 'message': 'No data received'}), 400
+    
+#     try:
+#         print(f"Data to be sent: {data}")
+#         # Post request to the other server
+#         response = requests.post(SERVER_URL, json=data)
+#         response.raise_for_status()  # Ensure any HTTP errors are raised
+        
+#         # Return the response from the other server
+#         return jsonify({'status': 'data sent', 'response': response.json()}), 200
+    
+#     except requests.exceptions.RequestException as e:
+#         # Handle any exceptions that occur during the POST request
+#         universal.error_code("Connection with server lost!")
+        
+#         # Design handling for what to do with data that couldn't be sent
+#         return jsonify({'status': 'error', 'message': str(e)}), 500
+    
+#send heart beat notification to server
+@app.route('/send-heart', methods=["GET"])
+def send_heart(data):
     global SERVER_URL
     # Post request to the other server
     try:
+        
+        time.sleep(30)
         response = requests.post(SERVER_URL, json=data)
         # Return the response from the other server
         return jsonify({'status': 'data sent', 'response': response.json()})
@@ -103,23 +140,19 @@ def send_trade(data):
 
 if __name__ == '__main__':
     # Start the Flask app
-    app.run(debug=True)
+     app.run(host="0.0.0.0", port=80, debug=True)
+     
 
 
 
 
 def send_test_trade_order():
     testList = [
-    '[2024-08-26 09:39:50] {"data":[{"service":"ACCT_ACTIVITY", "timestamp":1724683189449,"command":"SUBS","content":[{"seq":33,"key":"Account Activity","1":"54661285","2":"OrderCreated","3":{"SchwabOrderID":"1001416563737","AccountNumber":"54661285","BaseEvent":{"EventType":"OrderCreated","OrderCreatedEventEquityOrder":{"EventType":"OrderCreated","Order":{"SchwabOrderID":"1001416563737","AccountNumber":"54661285","Order":{"AccountInfo":{"AccountNumber":"54661285","AccountBranch":"WT","CustomerOrFirmCode":"CustomerOrFirmCode_Customer","OrderPlacementCustomerID":"353286754","AccountState":"MO","AccountTypeCode":"Customer"},"ClientChannelInfo":{"ClientProductCode":"M1","EventUserID":"O1XX","EventUserType":"Client"},"LifecycleCreatedTimestamp":{"DateTimeString":"2024-08-26 10:39:49.327"},"LifecycleSchwabOrderID":"1001416563737","EntryTimestamp":{"DateTimeString":"2024-08-26 10:39:49.327"},"ExpiryTimeStamp":{"DateTimeString":"2024-08-26"},"AutoConfirm":true,"PlanSubmitDate":{"DateTimeString":"2024-08-26"},"SourceOMS":"ngOMS","FirmID":"CHAS","OrderAccount":"TDAAccount","AssetOrderEquityOrderLeg":{"OrderInstruction":{"HandlingInstructionCode":"AutomatedExecutionNoIntervention","ExecutionStrategy":{"Type":"ES_Limit","LimitExecutionStrategy":{"Type":"ES_Limit","LimitPrice":{"lo":"3300000","signScale":12},"LimitPriceUnitCode":"Units"}},"PreferredRoute":{},"EquityOrderInstruction":{}},"CommissionInfo":{"EstimatedOrderQuantity":{"lo":"1000000","signScale":12},"EstimatedPrincipalAmount":{"lo":"330000000","signScale":13},"EstimatedCommissionAmount":{"lo":"650000","signScale":12}},"AssetType":"MajorAssetType_EquityOption","TimeInForce":"Day","OrderTypeCode":"Limit","OrderLegs":[{"LegID":"1001416563737","LegParentSchwabOrderID":"1001416563737","Quantity":{"lo":"1000000","signScale":12},"QuantityUnitCodeType":"SharesOrUnits","LeavesQuantity":{"lo":"1000000","signScale":12},"BuySellCode":"Buy","Security":{"SchwabSecurityID":"102232207","Symbol":"QQQ  240828P00471000","UnderlyingSymbol":"QQQ","MajorAssetType":"MajorAssetType_EquityOption","PrimaryMarketSymbol":"QQQ  240828P00471000","ShortDescriptionText":"INVESCO QQQ TR 08/28/2024 $471 Put","ShortName":"INVESCO QQQ TR 08/28/2024 $471 Put","CUSIP":"0QQQ..TS40471000","OptionsSecurityInfo":{"PutCallCode":"Put","UnderlyingSchwabSecurityID":"48644470","StrikePrice":{"lo":"471000000","signScale":12},"OptionExpiryDate":{"DateTimeString":"2024-08-28 00:00:00.000"}}},"QuoteOnOrderAcceptance":{"Ask":{"lo":"3290000","signScale":12},"AskSize":{"lo":"16"},"Bid":{"lo":"3260000","signScale":12},"BidSize":{"lo":"15"},"QuoteTimestamp":{"DateTimeString":"2024-08-26 10:39:49.327"},"Symbol":"QQQ  240828P00471000","QuoteTypeCode":"Mark","Mid":{"lo":"3275000","signScale":12},"SchwabOrderID":"1001416563737","OptionsQuote":{"PutCallCode":"Put"}},"LegClientRequestInfo":{"SecurityId":"QQQ  240828P00471000","SecurityIdTypeCd":"Symbol"},"AccountingRuleCode":"Cash","EstimatedNetAmount":{"lo":"330650000","signScale":13},"EstimatedPrincipalAmnt":{"lo":"330000000","signScale":13},"EquityOrderLeg":{"EquityOptionsOrderLeg":{"OpenClosePositionCode":"PC_Open"}}}],"OrderCapacityCode":"OC_Agency","SettlementType":"SettlementType_Regular","Rule80ACode":73,"SolicitedCode":"Unsolicited","TradeTag":"API_TOS:TRADE_ALL","EquityOrder":{"TradingSessionCodeOnOrder":"REG"}}}}}}]}]}'
+        '{"data":[{"service":"ACCT_ACTIVITY", "timestamp":1726499530728,"command":"SUBS","content":[{"seq":74,"key":"Account Activity","1":"54661285","2":"OrderCreated","3":"{\"SchwabOrderID\":\"1001602704574\",\"AccountNumber\":\"54661285\",\"BaseEvent\":{\"EventType\":\"OrderCreated\",\"OrderCreatedEventEquityOrder\":{\"EventType\":\"OrderCreated\",\"Order\":{\"SchwabOrderID\":\"1001602704574\",\"AccountNumber\":\"54661285\",\"Order\":{\"AccountInfo\":{\"AccountNumber\":\"54661285\",\"AccountBranch\":\"WT\",\"CustomerOrFirmCode\":\"CustomerOrFirmCode_Customer\",\"OrderPlacementCustomerID\":\"353286754\",\"AccountState\":\"MO\",\"AccountTypeCode\":\"Customer\"},\"ClientChannelInfo\":{\"ClientProductCode\":\"M1\",\"EventUserID\":\"O1XX\",\"EventUserType\":\"Client\"},\"LifecycleCreatedTimestamp\":{\"DateTimeString\":\"2024-09-16 11:12:10.632\"},\"LifecycleSchwabOrderID\":\"1001602704574\",\"EntryTimestamp\":{\"DateTimeString\":\"2024-09-16 11:12:10.632\"},\"ExpiryTimeStamp\":{\"DateTimeString\":\"2024-09-16\"},\"AutoConfirm\":true,\"PlanSubmitDate\":{\"DateTimeString\":\"2024-09-16\"},\"SourceOMS\":\"ngOMS\",\"FirmID\":\"CHAS\",\"OrderAccount\":\"TDAAccount\",\"AssetOrderEquityOrderLeg\":{\"OrderInstruction\":{\"HandlingInstructionCode\":\"AutomatedExecutionNoIntervention\",\"ExecutionStrategy\":{\"Type\":\"ES_Limit\",\"LimitExecutionStrategy\":{\"Type\":\"ES_Limit\",\"LimitPrice\":{\"lo\":\"1570000\",\"signScale\":12},\"LimitPriceUnitCode\":\"Units\"}},\"PreferredRoute\":{},\"EquityOrderInstruction\":{}},\"CommissionInfo\":{\"EstimatedOrderQuantity\":{\"lo\":\"1000000\",\"signScale\":12},\"EstimatedPrincipalAmount\":{\"lo\":\"157000000\",\"signScale\":12},\"EstimatedCommissionAmount\":{\"lo\":\"650000\",\"signScale\":12}},\"AssetType\":\"MajorAssetType_EquityOption\",\"TimeInForce\":\"Day\",\"OrderTypeCode\":\"Limit\",\"OrderLegs\":[{\"LegID\":\"1001602704574\",\"LegParentSchwabOrderID\":\"1001602704574\",\"Quantity\":{\"lo\":\"1000000\",\"signScale\":12},\"QuantityUnitCodeType\":\"SharesOrUnits\",\"LeavesQuantity\":{\"lo\":\"1000000\",\"signScale\":12},\"BuySellCode\":\"Sell\",\"Security\":{\"SchwabSecurityID\":\"93257851\",\"Symbol\":\"BA    240920P00150000\",\"UnderlyingSymbol\":\"BA\",\"MajorAssetType\":\"MajorAssetType_EquityOption\",\"PrimaryMarketSymbol\":\"BA    240920P00150000\",\"ShortDescriptionText\":\"Boeing Co 09\/20\/2024 $150 Put\",\"ShortName\":\"Boeing Co 09\/20\/2024 $150 Put\",\"CUSIP\":\"0BA...UK40150000\",\"OptionsSecurityInfo\":{\"PutCallCode\":\"Put\",\"UnderlyingSchwabSecurityID\":\"1890758598\",\"StrikePrice\":{\"lo\":\"150000000\",\"signScale\":12},\"OptionExpiryDate\":{\"DateTimeString\":\"2024-09-20 00:00:00.000\"}}},\"QuoteOnOrderAcceptance\":{\"Ask\":{\"lo\":\"1580000\",\"signScale\":12},\"AskSize\":{\"lo\":\"21\"},\"Bid\":{\"lo\":\"1540000\",\"signScale\":12},\"BidSize\":{\"lo\":\"250\"},\"QuoteTimestamp\":{\"DateTimeString\":\"2024-09-16 11:12:10.632\"},\"Symbol\":\"BA    240920P00150000\",\"QuoteTypeCode\":\"Mark\",\"Mid\":{\"lo\":\"1560000\",\"signScale\":13},\"SchwabOrderID\":\"1001602704574\",\"OptionsQuote\":{\"PutCallCode\":\"Put\"}},\"LegClientRequestInfo\":{\"SecurityId\":\"BA    240920P00150000\",\"SecurityIdTypeCd\":\"Symbol\"},\"AccountingRuleCode\":\"Cash\",\"EstimatedNetAmount\":{\"lo\":\"156350000\",\"signScale\":12},\"EstimatedPrincipalAmnt\":{\"lo\":\"157000000\",\"signScale\":12},\"EquityOrderLeg\":{\"EquityOptionsOrderLeg\":{\"OpenClosePositionCode\":\"PC_Close\"}}}],\"OrderCapacityCode\":\"OC_Agency\",\"SettlementType\":\"SettlementType_Regular\",\"Rule80ACode\":73,\"SolicitedCode\":\"Unsolicited\",\"TradeTag\":\"API_TOS:TRADE_ALL\",\"EquityOrder\":{\"TradingSessionCodeOnOrder\":\"REG\"}}}}}}}"}]}]}',
+        '{"data":[{"service":"ACCT_ACTIVITY", "timestamp":1726499531736,"command":"SUBS","content":[{"seq":75,"key":"Account Activity","1":"54661285","2":"OrderAccepted","3":"{\"SchwabOrderID\":\"1001602704574\",\"AccountNumber\":\"54661285\",\"BaseEvent\":{\"EventType\":\"OrderAccepted\",\"OrderAcceptedEvent\":{\"EventType\":\"OrderAccepted\",\"CreatedTimeStamp\":{\"DateTimeString\":\"2024-09-16 11:12:10.632\"},\"ExpiryTimeStamp\":{\"DateTimeString\":\"2024-09-16\"},\"Status\":\"Open\",\"TradingSessionCodeOnOrderEntry\":\"REG\",\"QuoteOnOrderEntry\":[{\"Ask\":{\"lo\":\"1580000\",\"signScale\":12},\"AskSize\":{\"lo\":\"21\"},\"Bid\":{\"lo\":\"1540000\",\"signScale\":12},\"BidSize\":{\"lo\":\"250\"},\"QuoteTimestamp\":{\"DateTimeString\":\"2024-09-16 11:12:10.632\"},\"Symbol\":\"BA    240920P00150000\",\"QuoteTypeCode\":\"Mark\",\"Mid\":{\"lo\":\"1560000\",\"signScale\":13},\"SchwabOrderID\":\"1001602704574\",\"OptionsQuote\":{\"PutCallCode\":\"Put\"}}]}}}"},{"seq":76,"key":"Account Activity","1":"54661285","2":"ExecutionRequested","3":"{\"SchwabOrderID\":\"1001602704574\",\"AccountNumber\":\"54661285\",\"BaseEvent\":{\"EventType\":\"ExecutionRequested\",\"ExecutionRequestedEventRoutedInfo\":{\"EventType\":\"ExecutionRequested\",\"RouteSequenceNumber\":1,\"RouteInfo\":{\"RouteName\":\"DASH_OPT_F1_J1\",\"RouteSequenceNumber\":1,\"RoutedExecutionTimestamp\":{\"DateTimeString\":\"2024-09-16 11:12:10.667\"},\"Quote\":{\"Ask\":{\"lo\":\"1580000\",\"signScale\":12},\"AskSize\":{\"lo\":\"21\"},\"Bid\":{\"lo\":\"1540000\",\"signScale\":12},\"BidSize\":{\"lo\":\"250\"},\"QuoteTimestamp\":{\"DateTimeString\":\"2024-09-16 11:12:10.632\"},\"Symbol\":\"BA    240920P00150000\",\"QuoteTypeCode\":\"Mark\",\"Mid\":{\"lo\":\"1560000\",\"signScale\":13},\"SchwabOrderID\":\"1001602704574\",\"OptionsQuote\":{\"PutCallCode\":\"Put\"}},\"RouteRequestedType\":\"New\",\"RoutedQuantity\":{\"lo\":\"1000000\",\"signScale\":12},\"RoutedPrice\":{\"lo\":\"1570000\",\"signScale\":12},\"RouteStatus\":\"RouteCreated\",\"ClientOrderID\":\"1001602704574.1\",\"RoutedTime\":{\"DateTimeString\":\"2024-09-16 11:12:10.667\"},\"RouteTimeInForce\":\"Day\",\"RouteAcknowledgmentTimeStamp\":{}},\"RouteRequestedBy\":\"RR_Broker\",\"LegId\":\"1001602704574\"}}}"},{"seq":77,"key":"Account Activity","1":"54661285","2":"ExecutionRequestCreated","3":"{\"SchwabOrderID\":\"1001602704574\",\"AccountNumber\":\"54661285\",\"BaseEvent\":{\"EventType\":\"ExecutionRequestCreated\",\"ExecutionRequestCreatedEvent\":{\"EventType\":\"ExecutionRequestCreated\",\"LegId\":\"1001602704574\",\"RouteName\":\"DASH_OPT_F1_J1\",\"RouteRequestType\":\"New\",\"RouteSequenceNumber\":1,\"RouteRequestedBy\":\"RR_Broker\",\"RouteStatus\":\"RouteFixAcknowledged\",\"SenderCompID\":\"SCHWABTDAMOFP1\",\"RoutedTime\":{\"DateTimeString\":\"2024-09-16 11:12:10.692\"},\"ClientOrderID\":\"1001602704574.1\"}}}"},{"seq":78,"key":"Account Activity","1":"54661285","2":"ExecutionRequestCompleted","3":"{\"SchwabOrderID\":\"1001602704574\",\"AccountNumber\":\"54661285\",\"BaseEvent\":{\"EventType\":\"ExecutionRequestCompleted\",\"ExecutionRequestCompletedEvent\":{\"EventType\":\"ExecutionRequestCompleted\",\"LegId\":\"1001602704574\",\"ResponseType\":\"Accepted\",\"ExchangeOrderID\":\"7700108138668\",\"ExecutionTime\":{\"DateTimeString\":\"2024-09-16 11:12:10.803\"},\"RouteSequenceNumber\":1,\"RouteStatus\":\"RouteVenueAccepted\",\"RouteAcknowledgmentTimeStamp\":{\"DateTimeString\":\"2024-09-16 11:12:10.770\"},\"ClientOrderID\":\"1001602704574.1\"}}}"}]}]}',
+        '{"data":[{"service":"ACCT_ACTIVITY", "timestamp":1726499534897,"command":"SUBS","content":[{"seq":79,"key":"Account Activity","1":"54661285","2":"OrderFillCompleted","3":"{\"SchwabOrderID\":\"1001602704574\",\"AccountNumber\":\"54661285\",\"BaseEvent\":{\"EventType\":\"OrderFillCompleted\",\"OrderFillCompletedEventOrderLegQuantityInfo\":{\"EventType\":\"OrderFillCompleted\",\"LegId\":\"1001602704574\",\"LegStatus\":\"LegClosed\",\"QuantityInfo\":{\"ExecutionID\":\"20240916-EST-ngOMS-13276896900\",\"CumulativeQuantity\":{\"lo\":\"1000000\",\"signScale\":12},\"LeavesQuantity\":{\"signScale\":12},\"AveragePrice\":{\"lo\":\"1570000\",\"signScale\":12}},\"PriceImprovement\":{\"signScale\":12},\"LegSubStatus\":\"LegSubStatusFilled\",\"ExecutionInfo\":{\"ExecutionSequenceNumber\":1,\"ExecutionId\":\"20240916-EST-ngOMS-13276896900\",\"VenueExecutionID\":\"7700633770743\",\"Exchange\":\"CBOE\",\"ExecutionQuantity\":{\"lo\":\"1000000\",\"signScale\":12},\"ExecutionPrice\":{\"lo\":\"1570000\",\"signScale\":12},\"ExecutionTimeStamp\":{\"DateTimeString\":\"2024-09-16 11:12:14.819\"},\"ExecutionTransType\":\"Fill\",\"ExecutionCapacityCode\":\"Agency\",\"RouteName\":\"DASH_OPT_F1_J1\",\"RouteSequenceNumber\":1,\"VenuExecutionTimeStamp\":{\"DateTimeString\":\"2024-09-16 11:12:14.787\"},\"ReportingCapacityCode\":\"RC_Agency\",\"ActualChargedCommissionAmount\":{\"lo\":\"650000\",\"signScale\":12},\"AsOfTimeStamp\":{},\"ActualChargedFeesCommissionAndTax\":{\"StateTaxWithholding\":{\"signScale\":12},\"FederalTaxWithholding\":{\"signScale\":12},\"SECFees\":{\"signScale\":12},\"ORF\":{\"lo\":\"10000\",\"signScale\":12},\"FTT\":{\"signScale\":12},\"TaxWithholding1446\":{\"signScale\":12},\"GoodsAndServicesTax\":{\"signScale\":12},\"IOF\":{\"signScale\":12},\"TAF\":{\"signScale\":12},\"CommissionAmount\":{\"lo\":\"650000\",\"signScale\":12}},\"ClientOrderID\":\"1001602704574.1\"},\"OrderInfoForTransactionPosting\":{\"LimitPrice\":{\"lo\":\"1570000\",\"signScale\":12},\"OrderTypeCode\":\"Limit\",\"OpenClosePositionCode\":\"PC_Close\",\"BuySellCode\":\"Sell\",\"Quantity\":{\"lo\":\"1000000\",\"signScale\":12},\"StopPrice\":{},\"Symbol\":\"BA    240920P00150000\",\"SchwabSecurityID\":\"93257851\",\"SolicitedCode\":\"Unsolicited\",\"AccountingRuleCode\":\"Cash\",\"SettlementType\":\"SettlementType_Regular\",\"OrderCreatedUserID\":\"O1XX\",\"OrderCreatedUserType\":\"Venue\",\"ClientProductCode\":\"N1\"}}}}"}]}]}'
     ]
-
+    
     for message in testList:
         # Extract the JSON part by removing the timestamp
-        json_data = message[message.index('{'):]  # Starts from the first '{'
-        
-        # Now parse the valid JSON
-        try:
-            parsed_data = json.loads(json_data)
-            print(parsed_data)
-        except json.JSONDecodeError as e:
-            print(f"Error decoding JSON: {e}")
+        my_handler(message)

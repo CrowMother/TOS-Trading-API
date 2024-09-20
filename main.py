@@ -2,7 +2,7 @@ import schwabdev #import the package
 from Modules import secretkeys
 from Modules import universal
 from Modules import streamer
-import time
+
 
 
 print("welcome to the Schwab API test Suite")
