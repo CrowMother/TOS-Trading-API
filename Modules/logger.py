@@ -11,5 +11,5 @@ def write_to_log(log_message):
     """
     with open(log_file, 'a') as file:
         timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        file.write(f'[{timestamp}] {log_message}\n')
+        file.write(f'{log_message}\n')
 
