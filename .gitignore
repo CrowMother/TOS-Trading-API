@@ -168,3 +168,16 @@ config/env
 tokens.json
 logfile.txt
 new_env/Scripts/python.exe
+Modules/logs.json
+new_env/Scripts/pythonw.exe
+new_env/Scripts/pip3.exe
+new_env/Scripts/pip3.11.exe
+new_env/Scripts/pip.exe
+new_env/Scripts/normalizer.exe
+new_env/Scripts/flask.exe
+new_env/Scripts/dotenv.exe
+new_env/Scripts/deactivate.bat
+new_env/Scripts/Activate.ps1
+new_env/Scripts/activate.bat
+new_env/Scripts/activate
+new_env/pyvenv.cfg
