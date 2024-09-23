@@ -4,9 +4,13 @@ from Modules import universal
 
 ORDER_DATA_MAP = {}
 
+#"signScale\":12 create a code to find the signScale or a similar value
+
 REQUIRED_FIELDS = [
     "SchwabOrderID", "AccountNumber", "UnderlyingSymbol", "StrikePrice",
-    "OptionsQuote", "OptionExpiryDate", "ExecutionPrice", "OpenClosePositionCode", "Quantity"
+    "OptionsQuote", "OptionExpiryDate", "ExecutionPrice", "OpenClosePositionCode", 
+    "Quantity", "signScale"
+
 ]
 
 def data_in(data):
@@ -87,6 +91,7 @@ def format_data(data):
     data['SchwabOrderID'] = integerize(data.get('SchwabOrderID'))
     data['Quantity'] = integerize(data.get('Quantity'))
     data['ExecutionPrice'] = integerize(data.get('ExecutionPrice'))
+    data['signScale'] = integerize(data.get('signScale'))
     
     if 'OptionsQuote' in data and data['OptionsQuote'] is not None:
         # Check if the split works correctly (and avoid IndexError)
