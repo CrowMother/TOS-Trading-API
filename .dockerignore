@@ -167,3 +167,4 @@ config/env
 .gitignore
 tokens.json
 logfile.txt
+docker_commands.txt
