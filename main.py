@@ -11,7 +11,6 @@ print("welcome to the Schwab API test Suite")
 #links the bot to the client for placing and pulling information
 client = schwabdev.Client(secretkeys.get_app_key(), secretkeys.get_secret())  #create a client
 
-print(client.account_linked().json()) #make api calls 
 
 
 #start of the main close
