@@ -18,11 +18,14 @@ def send_test_trade_order():
     
     for trade in testList:
         data = Parse_data(trade)
+        streamer.my_handler(data)
 
 
 def Parse_data(json_string):
     start_search = 0
     jsonData = []
+
+    #loop through the data set looking for the fields needed
     while True:
         # Find the start and end index of the "3" field
         startIndex, endIndex = find_end_of_field(json_string, "3", start_search)
@@ -58,14 +61,6 @@ def Parse_data(json_string):
         start_search = endIndex
     return jsonData      
                 
-        
-
-        # Data.data_in(data)
-        # streamer.my_handler(data)
-
-
-
-
 
 
 def check_balanced_brackets(string):
