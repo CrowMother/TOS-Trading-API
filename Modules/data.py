@@ -14,20 +14,11 @@ REQUIRED_FIELDS = [
 ]
 
 def data_in(data):
-    #rework heartbeat detection and remove heartbeats or print in a single statement 
+
     
-    #if not heart beat parse for data
-    data = parse_json(data)
-    #check for heart beat and login
-    if len(data) < 3:
-        #send a heartbeat
-        print("heart Beat")
-        return
-    
-    #format out un-needed data
-    data = format_data(data)
-    Load_order_data_map(data)
-    check_and_send_all_orders()
+
+
+
 
 
 def check_and_send_all_orders():
@@ -82,73 +73,6 @@ def check_heart_beat(json_data):
 
 
 
-def format_data(data):
-    #print(data)
-    data['AccountNumber'] = integerize(data.get('AccountNumber'))
-    data['LifecycleSchwabOrderID'] = integerize(data.get('LifecycleSchwabOrderID'))
-    data['StrikePrice'] = integerize(data.get('StrikePrice'))
-    data['OptionExpiryDate'] = format_date(data.get('OptionExpiryDate'))
-    data['SchwabOrderID'] = integerize(data.get('SchwabOrderID'))
-    data['Quantity'] = integerize(data.get('Quantity'))
-    data['ExecutionPrice'] = integerize(data.get('ExecutionPrice'))
-    data['signScale'] = integerize(data.get('signScale'))
-    
-    if 'OptionsQuote' in data and data['OptionsQuote'] is not None:
-        # Check if the split works correctly (and avoid IndexError)
-        if ":" in data['OptionsQuote']:
-            data['OptionsQuote'] = data.get('OptionsQuote').split(":", 1)[1]
-
-    if 'OpenClosePositionCode' in data and data['OpenClosePositionCode'] is not None:
-        # Check if the split works correctly (and avoid IndexError)
-        equity_order_leg_parts = data['OpenClosePositionCode'].split(":")
-        if len(equity_order_leg_parts) >= 3:
-            data['OpenClosePositionCode'] = equity_order_leg_parts[2]
-
-    print("data parsed Correctly")
-    return data
-
-def parse_json(json_data):
-    json_data = remove_specific_characters(json_data, "\"][}{\\//")
-    json_data = manual_json_parse(json_data)
-    return json_data
-    
-
-
-# Function to check if an order has all required fields
-
-def manual_json_parse(json_data):
-    parsed_json = {}
-
-    # Step 1: Clean the data (ensure the JSON-like string is workable)
-    cleaned_data = json_data.replace('\\"', '"').replace("\\", "")
-    
-    # Step 2: Manually search for each required field
-    for required_field in REQUIRED_FIELDS:
-        field_position = cleaned_data.find(required_field)
-        if field_position != -1:
-            # Extract the value for the found required field
-            # Assume the value follows after ':' and is either followed by a comma or a closing brace
-            start_index = field_position + len(required_field) + 1  # move past the key and the colon
-            end_index = cleaned_data.find(',', start_index)
-            if end_index == -1:
-                end_index = cleaned_data.find('}', start_index)
-            value = cleaned_data[start_index:end_index].strip()
-
-            # Clean the extracted value further
-            value = value.replace('"', '').strip()
-            parsed_json[required_field] = value
-            print(f"{required_field} -> {value}")
-    
-    print("_________________________________________________________")
-    return parsed_json
-
-def is_useful_key(key):
-    if key in REQUIRED_FIELDS:
-        return True
-    else:
-        return False
-
-
 def remove_specific_characters(json_data, chars):
     for char in chars:
        json_data = json_data.replace(char, "")
@@ -181,4 +105,3 @@ def format_date(input):
 
 def calculate_price(value, quantity):
     return (value / quantity)
-
