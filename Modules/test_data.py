@@ -55,7 +55,7 @@ def Parse_data(json_string):
             except json.JSONDecodeError as e:
                 print(f"JSON Decode Error: {e}")
         else:
-            print("Unbalanced Brackets in data set")
+            print(f"Unbalanced Brackets in data set")
 
         # Update the starting search index for the next field to end of current field
         start_search = endIndex
