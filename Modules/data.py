@@ -6,12 +6,14 @@ import operator
 
 TRADES_DICT = {}
 
+
+
 #tracks the whole trade
 class Trade:
     def __init__(self):
         self.schwabOrderID = ""
         self.tradeType = ""
-        self.porcessingStep = "" #Based off the furthest along step in the trade
+        self.processingStep = "" #Based off the furthest along step in the trade
         self.tradeStatus = "" #Order completed (opening), working(position is open), close() , used for checking if trade is complete to calcualte win loss rate
 
         self.openExecutionPrice = ""
@@ -60,6 +62,26 @@ class Trade:
                 tradeType = "N/F"
 
         self.tradeType = tradeType
+
+    def update_processing_step(self, order_steps):
+        # Create a mapping of tradeStatus to its index in order_steps
+        step_index = {step: index for index, step in enumerate(order_steps)}
+
+        # Find the highest index of tradeStatus in subTrades
+        highest_index = -1
+        for sub_trade in self.subTrades:
+            if sub_trade.tradeStatus in step_index:
+                index = step_index[sub_trade.tradeStatus]
+                if index > highest_index:
+                    highest_index = index
+
+        # Set the processingStep to the latest step if found
+        if highest_index != -1:
+            self.processingStep = order_steps[highest_index]
+        else:
+            self.processingStep = "Not Started"  # Default if no valid status found
+
+
                
     #tracks parts of the trade based on status of the trade
 class SubTrade():
@@ -85,15 +107,37 @@ def data_in(data):
     #get the type of trade to check for multiLeg
     trade.check_trade_type()
     
-    #check what type of trade it is looking at
+    
 
+    
     #regular trades, check if data is ready to send then send
     if trade.tradeType == "Regular":
-        #prep to send data that is needed for a regular trade
-        print(trade.tradeStatus)
+        #steps for each of the sub trade
+        #put in the order of first to complete
+        order_steps = [
+            "orderCreated",
+            "orderAccepted",
+            "changeCreated",
+            "ExecutionRequested",
+            "ExecutionRequestCreated",
+            "ExecutionRequestCompleted",
+            "OrderFillCompleted"  # Last one being found should send the data
+        ]
+        #look and load the important data
+
+        #update trade status
+        trade.update_processing_step(order_steps)
+        print(f"trade processing step: {trade.processingStep}")
+        #if the trade is last in the process then send the data
+
+        if trade.processingStep == order_steps[len(order_steps) - 1]: #calculating highest index
+            print("prep data to send")
+
+            #grab the data needed for sending it to discord
+            
 
 
-
+        
 
     #function to check if all data needed for that trade is present
 
