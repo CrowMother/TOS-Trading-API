@@ -108,14 +108,14 @@ def extract_sub_trade_data(sub_trade):
 
     # Define fields to extract and check
     fields_to_check = {
-        "tradeStatus": sub_trade.tradeStatus,
-        "shortDescriptionText": sub_trade.shortDescriptionText,
-        "executionPrice": sub_trade.executionPrice,
-        "executionSignScale": sub_trade.executionSignScale,
-        "underlyingSymbol": sub_trade.underlyingSymbol,
-        "routedAmount": sub_trade.routedAmount,
-        "multiLegLimitPriceType": sub_trade.multiLegLimitPriceType,
-        "multiLegStrategyType": sub_trade.multiLegStrategyType
+        "tradeStatus": pull_sub_trade_field(sub_trade, "tradeStatus"),
+        "shortDescriptionText": pull_sub_trade_field(sub_trade, "shortDescriptionText"),
+        "executionPrice": pull_sub_trade_field(sub_trade, "executionPrice"),
+        "executionSignScale": pull_sub_trade_field(sub_trade, "executionSignScale"),
+        "underlyingSymbol": pull_sub_trade_field(sub_trade, "underlyingSymbol"),
+        "routedAmount": pull_sub_trade_field(sub_trade, "routedAmount"),
+        "multiLegLimitPriceType": pull_sub_trade_field(sub_trade, "multiLegLimitPriceType"),
+        "multiLegStrategyType": pull_sub_trade_field(sub_trade, "multiLegStrategyType")
     }
 
     # Loop through the fields and store data only if it's not "N/F"
@@ -124,6 +124,19 @@ def extract_sub_trade_data(sub_trade):
             trade_data[key] = value
 
     return trade_data
+
+
+def pull_sub_trade_field(sub_trade, field_name):
+    """Safely extract a field from sub_trade or return 'N/F' if missing."""
+    try:
+        # Use getattr to safely access the field
+        value = getattr(sub_trade, field_name, None)
+        # Return "N/F" if the value is None or the field doesn't exist
+        return value if value is not None else "N/F"
+    except Exception as e:
+        # Log the error and return "N/F" if any exception occurs
+        print(f"Error accessing {field_name}: {e}")
+        return "N/F"
 
 #----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 #start of the data processing pipeline
@@ -164,11 +177,14 @@ def regularTrade(trade):
 
         if trade.processingStep == order_steps[len(order_steps) - 1]: #calculating highest index
             print("prep data to send")
-            
+            trade_data = {}
             #get subTrade Data
-            for subTrade in trade.subTrades:
-                extract_sub_trade_data(subTrade)
             #grab the data needed for sending it to discord
+            for subTrade in trade.subTrades:
+                trade_data = extract_sub_trade_data(subTrade)
+            print(trade_data)
+            
+            
         
 
     #function to check if all data needed for that trade is present
