@@ -95,8 +95,35 @@ class SubTrade():
         routedAmount = "" #figure out what the acutal value for multilegs are for this
         multiLegLimitPriceType = ""
         multiLegStrategyType = ""
-        
-        
+
+    def get_sub_trade(self):
+
+        self.tradeStatus
+
+
+
+def extract_sub_trade_data(sub_trade):
+    # Initialize an empty dictionary to store valid data
+    trade_data = {}
+
+    # Define fields to extract and check
+    fields_to_check = {
+        "tradeStatus": sub_trade.tradeStatus,
+        "shortDescriptionText": sub_trade.shortDescriptionText,
+        "executionPrice": sub_trade.executionPrice,
+        "executionSignScale": sub_trade.executionSignScale,
+        "underlyingSymbol": sub_trade.underlyingSymbol,
+        "routedAmount": sub_trade.routedAmount,
+        "multiLegLimitPriceType": sub_trade.multiLegLimitPriceType,
+        "multiLegStrategyType": sub_trade.multiLegStrategyType
+    }
+
+    # Loop through the fields and store data only if it's not "N/F"
+    for key, value in fields_to_check.items():
+        if value != "N/F" and value:  # Check if value is not "N/F" and is not empty
+            trade_data[key] = value
+
+    return trade_data
 
 #----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 #start of the data processing pipeline
@@ -112,7 +139,12 @@ def data_in(data):
     
     #regular trades, check if data is ready to send then send
     if trade.tradeType == "Regular":
-        #steps for each of the sub trade
+        regularTrade(trade)
+
+            
+
+def regularTrade(trade):
+    #steps for each of the sub trade
         #put in the order of first to complete
         order_steps = [
             "orderCreated",
@@ -132,23 +164,24 @@ def data_in(data):
 
         if trade.processingStep == order_steps[len(order_steps) - 1]: #calculating highest index
             print("prep data to send")
-
-            #grab the data needed for sending it to discord
             
-
-
+            #get subTrade Data
+            for subTrade in trade.subTrades:
+                extract_sub_trade_data(subTrade)
+            #grab the data needed for sending it to discord
         
 
     #function to check if all data needed for that trade is present
 
 
 
+    
 
 
 #load data into the sub trades and subtrades into the trade class and return the current trade loaded
 def load_trade(data):
     try:
-        #store and load the data into objects
+        #stores the SchwabOrderID from the first set of data
         schwabOrderID = data[0]['SchwabOrderID']
 
 
