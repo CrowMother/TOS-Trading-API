@@ -204,7 +204,7 @@ def regularTrade(trade):
             for subTrade in trade.subTrades:
                 #be able to store the data long term and prevent over writes of empty data
                 trade_data = extract_sub_trade_data(subTrade, trade_data)
-                print(trade_data)
+                #print(trade_data)
             return(trade_data)
         else:
             return(None)
@@ -230,7 +230,7 @@ def load_trade(data):
         # Loop for each of the subtrades
         for json_data in data:
             sub_trade = SubTrade()
-            print(f"Processing subtrade: {json_data}")
+            #print(f"Processing subtrade: {json_data}")
 
             # Recursively search for keys
             sub_trade.tradeStatus = recursive_search(json_data, "EventType")
@@ -326,7 +326,7 @@ def Parse_data(json_string):
             try:
                 # Parse the balanced content as JSON
                 data = json.loads(content[content.find('{'):])  # Parsing only the JSON part
-                print(f"\n\nParsed Data: {data}")
+                #print(f"\n\nParsed Data: {data}")
                 jsonData.append(data)
             except json.JSONDecodeError as e:
                 print(f"JSON Decode Error: {e}")
