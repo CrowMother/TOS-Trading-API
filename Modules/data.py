@@ -1,8 +1,12 @@
 import json
 from Modules import streamer
 from Modules import universal
+from Modules import webhook
 from functools import reduce
 import operator
+import jmespath
+
+
 
 TRADES_DICT = {}
 
@@ -54,6 +58,7 @@ class Trade:
                 elif strategy_type == "N/F":
                     print(f"Trade {self.schwabOrderID} is a Regular Trade.")
                     tradeType = "Regular"
+                    return "Regular"
                 else:
                     print(f"Trade {self.schwabOrderID} has an unknown multi-leg strategy: {strategy_type}")
                     tradeType = "Unknown Strategy"
@@ -102,9 +107,8 @@ class SubTrade():
 
 
 
-def extract_sub_trade_data(sub_trade):
-    # Initialize an empty dictionary to store valid data
-    trade_data = {}
+def extract_sub_trade_data(sub_trade, trade_data):
+    # Initialize an empty dictionary to store valid data or "N/F"
 
     # Define fields to extract and check
     fields_to_check = {
@@ -118,10 +122,11 @@ def extract_sub_trade_data(sub_trade):
         "multiLegStrategyType": pull_sub_trade_field(sub_trade, "multiLegStrategyType")
     }
 
-    # Loop through the fields and store data only if it's not "N/F"
+    # Store all fields, including those with "N/F"
     for key, value in fields_to_check.items():
-        if value != "N/F" and value:  # Check if value is not "N/F" and is not empty
-            trade_data[key] = value
+        # Only store "N/F" if the field is missing or empty in the trade_data dictionary
+        if key not in trade_data or trade_data[key] in [None, "", "N/F"]:
+            trade_data[key] = value  # Store the new value, whether valid or "N/F"
 
     return trade_data
 
@@ -131,7 +136,7 @@ def pull_sub_trade_field(sub_trade, field_name):
     try:
         # Use getattr to safely access the field
         value = getattr(sub_trade, field_name, None)
-        # Return "N/F" if the value is None or the field doesn't exist
+        # Return the value if it exists, or "N/F" if it's None
         return value if value is not None else "N/F"
     except Exception as e:
         # Log the error and return "N/F" if any exception occurs
@@ -141,18 +146,33 @@ def pull_sub_trade_field(sub_trade, field_name):
 #----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 #start of the data processing pipeline
 def data_in(data):
-    
+    #create a trade object and store the subtrades within it
     trade = load_trade(data)
 
+    #store the trade object
+    schwabOrderID = trade.schwabOrderID
+    
+    if schwabOrderID in TRADES_DICT:
+        # If the SchwabOrderID already exists in TRADES_DICT, combine the subTrades
+        existing_trade = TRADES_DICT[schwabOrderID]
+        # Merge subTrades
+        existing_trade.subTrades.extend(trade.subTrades)
+    else:
+        # If it's a new trade, add it to TRADES_DICT
+        TRADES_DICT[schwabOrderID] = trade
+
+    #transfer over to the Global variable
+    trade = TRADES_DICT[schwabOrderID]
+
     #get the type of trade to check for multiLeg
-    trade.check_trade_type()
+    trade.tradeType = trade.check_trade_type()
     
     
 
-    
-    #regular trades, check if data is ready to send then send
     if trade.tradeType == "Regular":
-        regularTrade(trade)
+        tradeData = regularTrade(trade)
+        if tradeData is not None:
+            webhook.webhookout(tradeData)
 
             
 
@@ -180,10 +200,14 @@ def regularTrade(trade):
             trade_data = {}
             #get subTrade Data
             #grab the data needed for sending it to discord
+            trade_data = {}
             for subTrade in trade.subTrades:
-                trade_data = extract_sub_trade_data(subTrade)
-            print(trade_data)
-            
+                #be able to store the data long term and prevent over writes of empty data
+                trade_data = extract_sub_trade_data(subTrade, trade_data)
+                print(trade_data)
+            return(trade_data)
+        else:
+            return(None)
             
         
 
@@ -197,61 +221,158 @@ def regularTrade(trade):
 #load data into the sub trades and subtrades into the trade class and return the current trade loaded
 def load_trade(data):
     try:
-        #stores the SchwabOrderID from the first set of data
-        schwabOrderID = data[0]['SchwabOrderID']
+        trade = Trade()
+        # Stores the SchwabOrderID from the first set of data
+        trade.schwabOrderID = recursive_search(data[0], "SchwabOrderID")
+        print(f"SchwabOrderID: {trade.schwabOrderID}")
 
-
-        # If this SchwabOrderID is not in the trades_dict, create a new Trade
-        if schwabOrderID not in TRADES_DICT:
-            trade = Trade()
-            trade.schwabOrderID = schwabOrderID
-            TRADES_DICT[schwabOrderID] = trade
-        else:
-            #If the ID is in the trades_dict pull that trade
-            trade = TRADES_DICT[schwabOrderID]
-
-        #loop here for each of the subtrades
+        
+        # Loop for each of the subtrades
         for json_data in data:
-
-            #either way create a subtrade to store the important data from the trade
             sub_trade = SubTrade()
-            sub_trade.tradeStatus = pull_json_data(json_data, "BaseEvent.EventType")
-            sub_trade.shortDescriptionText = pull_json_data(json_data, "BaseEvent.OrderCreatedEventEquityOrder.Order.AssetOrderEquityOrderLeg.OrderLegs.0.Security.ShortDescriptionText")
-            sub_trade.executionPrice = pull_json_data(json_data, "BaseEvent.OrderFillCompletedEventOrderLegQuantityInfo.ExecutionInfo.ExecutionPrice.lo")
-            sub_trade.executionSignScale = pull_json_data(json_data, "BaseEvent.OrderFillCompletedEventOrderLegQuantityInfo.ExecutionInfo.ExecutionPrice.signScale")
-            sub_trade.multiLegLimitPriceType = pull_json_data(json_data, "BaseEvent.OrderCreatedEventEquityOrder.Order.EquityOrder.OptionsInfo.EquityOptionsInfo.MultiLegLimitPriceType")
-            sub_trade.multiLegStrategyType = pull_json_data(json_data, "BaseEvent.OrderCreatedEventEquityOrder.Order.EquityOrder.MultiLegStrategyType")
-            sub_trade.underlyingSymbol = pull_json_data(json_data, "BaseEvent.OrderCreatedEventEquityOrder.Order.AssetOrderEquityOrderLeg.OrderLegs.0.Security.UnderlyingSymbol")
+            print(f"Processing subtrade: {json_data}")
 
-            #add the subtrade to the trade that is being tracked 
+            # Recursively search for keys
+            sub_trade.tradeStatus = recursive_search(json_data, "EventType")
+            print(f"Trade Status: {sub_trade.tradeStatus}")
+
+            sub_trade.shortDescriptionText = recursive_search(json_data, "ShortDescriptionText")
+            print(f"Short Description: {sub_trade.shortDescriptionText}")
+
+            sub_trade.executionPrice = recursive_search(json_data, "ExecutionPrice")
+            print(f"Execution Price: {sub_trade.executionPrice}")
+
+            sub_trade.executionSignScale = recursive_search(json_data, "signScale")
+            print(f"Execution Sign Scale: {sub_trade.executionSignScale}")
+
+            sub_trade.underlyingSymbol = recursive_search(json_data, "UnderlyingSymbol")
+            print(f"Underlying Symbol: {sub_trade.underlyingSymbol}")
+
+            sub_trade.multiLegStrategyType = "N/F"
+
+            # Add the subtrade to the trade that is being tracked 
             trade.add_sub_trade(sub_trade)
-
-            #move important data to the trade
-
-        #save the trade and subtrades to the dict
-        TRADES_DICT[schwabOrderID] = trade
-        #return the trade
+        
+        # Return the trade
         return trade
     except Exception as e:
-        #look into making an error handler, something to either restart or partially restart the program
         print(f"Error in load_trade: {e}")
         return None
 
 
 
+def recursive_search(data, target_key):
+    """Recursively search for a key in a nested dictionary or list."""
+    if isinstance(data, dict):
+        # Iterate over dictionary keys and values
+        for key, value in data.items():
+            if key == target_key:
+                return value  # Key found, return the value
+            elif isinstance(value, (dict, list)):
+                # Recursively search nested structures
+                result = recursive_search(value, target_key)
+                if result is not None:
+                    return result  # Return the result if found
+    elif isinstance(data, list):
+        # Iterate over items if the current level is a list
+        for item in data:
+            result = recursive_search(item, target_key)
+            if result is not None:
+                return result
+    return None  # If not found
 
 
 
-def pull_json_data(json_data, location):
+
+def pull_json_data(json_data, path, default_value="N/F"):
+    """Safely extract a field from nested JSON data using jmespath."""
     try:
-        # Split the location string by '.' to access nested fields
-        keys = location.split('.')
-        # Use reduce to traverse the nested dictionary
-        outputData = reduce(operator.getitem, keys, json_data)
-        return outputData
-    except KeyError as e:
-        #print(f"KeyError: {e} is missing in the JSON data.")
-        return "N/F"
+        result = jmespath.search(path, json_data)
+        return result if result is not None else default_value
     except Exception as e:
-        print(f"An error occurred in pull_json_data: {str(e)}")
-        return "error"
+        print(f"Error accessing path '{path}': {e}")
+        return default_value
+
+
+    
+
+
+def Parse_data(json_string):
+    start_search = 0
+    jsonData = []
+
+    #loop through the data set looking for the fields needed
+    while True:
+        # Find the start and end index of the "3" field
+        startIndex, endIndex = find_end_of_field(json_string, "3", start_search)
+
+        if startIndex is None or endIndex is None:
+            break  # No more fields found
+
+        # Extract the content within the brackets
+        content = json_string[startIndex:endIndex]
+
+        # Count open and closing braces
+        openBrackets = content.count('{')
+        closeBrackets = content.count('}')
+
+        # If there are unbalanced brackets, calculate how many closing braces are missing
+        if openBrackets > closeBrackets:
+            missing = openBrackets - closeBrackets
+            content = content + '}' * missing  # Append missing closing brackets
+
+        # Check if the content is now balanced
+        if check_balanced_brackets(content):
+            try:
+                # Parse the balanced content as JSON
+                data = json.loads(content[content.find('{'):])  # Parsing only the JSON part
+                print(f"\n\nParsed Data: {data}")
+                jsonData.append(data)
+            except json.JSONDecodeError as e:
+                print(f"JSON Decode Error: {e}")
+        else:
+            print(f"Unbalanced Brackets in data set")
+
+        # Update the starting search index for the next field to end of current field
+        start_search = endIndex
+    return jsonData      
+                
+
+
+def check_balanced_brackets(string):
+    stack = []
+    
+    for char in string:
+        if char == '{':
+            stack.append(char)  # Push to stack when an open bracket is found
+        elif char == '}':
+            if not stack:
+                return False  # More closing brackets than opening
+            stack.pop()  # Pop from stack when a closing bracket is found
+    
+    # If the stack is empty, all brackets are balanced
+    return len(stack) == 0
+
+
+def find_end_of_field(json_string, field, start_search=0):
+    # Find the position of the field starting from the given index
+    field_pos = json_string.find(f'"{field}":', start_search)
+    if field_pos == -1:
+        return None, None  # Field not found
+    
+    start_pos = json_string.find('{', field_pos)
+    if start_pos == -1:
+        return None, None  # Opening curly brace not found
+
+    # Track opening and closing braces to find the end of the field
+    open_braces = 1  # Count the first open brace
+    end_pos = start_pos + 1
+    while open_braces > 0 and end_pos < len(json_string):
+        if json_string[end_pos] == '{':
+            open_braces += 1
+        elif json_string[end_pos] == '}':
+            open_braces -= 1
+        end_pos += 1
+    
+    # Return the start and end positions
+    return field_pos, end_pos
