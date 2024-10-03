@@ -2,6 +2,7 @@ import json
 from Modules import streamer
 from Modules import universal
 from Modules import webhook
+from Modules import debugger
 from functools import reduce
 import operator
 import jmespath
@@ -140,6 +141,7 @@ def pull_sub_trade_field(sub_trade, field_name):
         return value if value is not None else "N/F"
     except Exception as e:
         # Log the error and return "N/F" if any exception occurs
+        debugger.handle_exception(e)
         print(f"Error accessing {field_name}: {e}")
         return "N/F"
 
@@ -248,6 +250,7 @@ def load_trade(data):
             sub_trade.underlyingSymbol = recursive_search(json_data, "UnderlyingSymbol")
             print(f"Underlying Symbol: {sub_trade.underlyingSymbol}")
 
+            #add recursive search for loading multileg positions as well 
             sub_trade.multiLegStrategyType = "N/F"
 
             # Add the subtrade to the trade that is being tracked 

@@ -75,7 +75,7 @@ def start_account_tracking(client):
         universal.error_code("Error Client is a None Type")
     else:
         streamer.start(my_handler)
-        client.stream.send(client.stream.account_activity("Account Activity", "0,1,2,3,4"))
+        client.stream.send(client.stream.account_activity("Account Activity", "0,1,2,3"))
 
     
 

@@ -22,7 +22,7 @@ def print_combined(colored_text, non_colored_text, color_code):
 def print_colored(text, color_code):
     print(f"\033[{color_code}m{text}\033]")
 
-def time_stamp():
+def get_time():
     return datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
 
@@ -38,4 +38,5 @@ def split_string_at_char(inputString, splitChar, SectionNum):
             return ""
     except ValueError as e:
         error_code(f"Value unable to be split and or returned:{str(inputString)}. Error : {str(e)}")
+
 
