@@ -107,47 +107,12 @@ class SubTrade():
         self.tradeStatus
 
 
-
-def extract_sub_trade_data(sub_trade, trade_data):
-    # Initialize an empty dictionary to store valid data or "N/F"
-
-    # Define fields to extract and check
-    fields_to_check = {
-        "tradeStatus": pull_sub_trade_field(sub_trade, "tradeStatus"),
-        "shortDescriptionText": pull_sub_trade_field(sub_trade, "shortDescriptionText"),
-        "executionPrice": pull_sub_trade_field(sub_trade, "executionPrice"),
-        "executionSignScale": pull_sub_trade_field(sub_trade, "executionSignScale"),
-        "underlyingSymbol": pull_sub_trade_field(sub_trade, "underlyingSymbol"),
-        "routedAmount": pull_sub_trade_field(sub_trade, "routedAmount"),
-        "multiLegLimitPriceType": pull_sub_trade_field(sub_trade, "multiLegLimitPriceType"),
-        "multiLegStrategyType": pull_sub_trade_field(sub_trade, "multiLegStrategyType")
-    }
-
-    # Store all fields, including those with "N/F"
-    for key, value in fields_to_check.items():
-        # Only store "N/F" if the field is missing or empty in the trade_data dictionary
-        if key not in trade_data or trade_data[key] in [None, "", "N/F"]:
-            trade_data[key] = value  # Store the new value, whether valid or "N/F"
-
-    return trade_data
-
-
-def pull_sub_trade_field(sub_trade, field_name):
-    """Safely extract a field from sub_trade or return 'N/F' if missing."""
-    try:
-        # Use getattr to safely access the field
-        value = getattr(sub_trade, field_name, None)
-        # Return the value if it exists, or "N/F" if it's None
-        return value if value is not None else "N/F"
-    except Exception as e:
-        # Log the error and return "N/F" if any exception occurs
-        debugger.handle_exception(e)
-        print(f"Error accessing {field_name}: {e}")
-        return "N/F"
-
 #----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 #start of the data processing pipeline
 def data_in(data):
+    #sort out non-trades and heartbeats
+    
+    
     #create a trade object and store the subtrades within it
     trade = load_trade(data)
 
@@ -223,9 +188,14 @@ def regularTrade(trade):
 #load data into the sub trades and subtrades into the trade class and return the current trade loaded
 def load_trade(data):
     try:
+         
+        if not data or not isinstance(data, list) or len(data) == 0:
+            print("Error: Data is empty or invalid.")
+            return None
         trade = Trade()
         # Stores the SchwabOrderID from the first set of data
-        trade.schwabOrderID = recursive_search(data[0], "SchwabOrderID")
+        if data is not "" or not None:
+            trade.schwabOrderID = recursive_search(data[0], "SchwabOrderID")
         print(f"SchwabOrderID: {trade.schwabOrderID}")
 
         
@@ -259,30 +229,35 @@ def load_trade(data):
         # Return the trade
         return trade
     except Exception as e:
-        print(f"Error in load_trade: {e}")
+        print(f"Data: {data}")
+        debugger.handle_exception(e)
         return None
 
 
 
 def recursive_search(data, target_key):
     """Recursively search for a key in a nested dictionary or list."""
-    if isinstance(data, dict):
-        # Iterate over dictionary keys and values
-        for key, value in data.items():
-            if key == target_key:
-                return value  # Key found, return the value
-            elif isinstance(value, (dict, list)):
-                # Recursively search nested structures
-                result = recursive_search(value, target_key)
+    try:
+        if isinstance(data, dict):
+            # Iterate over dictionary keys and values
+            for key, value in data.items():
+                if key == target_key:
+                    return value  # Key found, return the value
+                elif isinstance(value, (dict, list)):
+                    # Recursively search nested structures
+                    result = recursive_search(value, target_key)
+                    if result is not None:
+                        return result  # Return the result if found
+        elif isinstance(data, list):
+            # Iterate over items if the current level is a list
+            for item in data:
+                result = recursive_search(item, target_key)
                 if result is not None:
-                    return result  # Return the result if found
-    elif isinstance(data, list):
-        # Iterate over items if the current level is a list
-        for item in data:
-            result = recursive_search(item, target_key)
-            if result is not None:
-                return result
-    return None  # If not found
+                    return result
+        return None  # If not found
+    except Exception as e:
+        debugger.handle_exception(e, data)
+
 
 
 
@@ -340,6 +315,44 @@ def Parse_data(json_string):
         start_search = endIndex
     return jsonData      
                 
+
+
+def extract_sub_trade_data(sub_trade, trade_data):
+    # Initialize an empty dictionary to store valid data or "N/F"
+
+    # Define fields to extract and check
+    fields_to_check = {
+        "tradeStatus": pull_sub_trade_field(sub_trade, "tradeStatus"),
+        "shortDescriptionText": pull_sub_trade_field(sub_trade, "shortDescriptionText"),
+        "executionPrice": pull_sub_trade_field(sub_trade, "executionPrice"),
+        "executionSignScale": pull_sub_trade_field(sub_trade, "executionSignScale"),
+        "underlyingSymbol": pull_sub_trade_field(sub_trade, "underlyingSymbol"),
+        "routedAmount": pull_sub_trade_field(sub_trade, "routedAmount"),
+        "multiLegLimitPriceType": pull_sub_trade_field(sub_trade, "multiLegLimitPriceType"),
+        "multiLegStrategyType": pull_sub_trade_field(sub_trade, "multiLegStrategyType")
+    }
+
+    # Store all fields, including those with "N/F"
+    for key, value in fields_to_check.items():
+        # Only store "N/F" if the field is missing or empty in the trade_data dictionary
+        if key not in trade_data or trade_data[key] in [None, "", "N/F"]:
+            trade_data[key] = value  # Store the new value, whether valid or "N/F"
+
+    return trade_data
+
+
+def pull_sub_trade_field(sub_trade, field_name):
+    """Safely extract a field from sub_trade or return 'N/F' if missing."""
+    try:
+        # Use getattr to safely access the field
+        value = getattr(sub_trade, field_name, None)
+        # Return the value if it exists, or "N/F" if it's None
+        return value if value is not None else "N/F"
+    except Exception as e:
+        # Log the error and return "N/F" if any exception occurs
+        debugger.handle_exception(e)
+        print(f"Error accessing {field_name}: {e}")
+        return "N/F"
 
 
 def check_balanced_brackets(string):

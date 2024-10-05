@@ -3,23 +3,29 @@ from Modules import universal
 from Modules import logger
 from Modules import secretkeys
 from Modules import data as Data
+from Modules import debugger
 import time
 from flask import Flask, request, jsonify
 import requests
+import json
 
 
 
 
 #main handler for new data coming in
 def my_handler(data):
-    data = Data.Parse_data(data)
-    #universal.okay_code(data)
-    logger.write_to_log(data)
-    
-    #parse data that we need
-    data = Data.data_in(data)
+    debugger.log_trade(data)
+    #sort out heart beats and login responses
+    isValidTrade = contains_acct_activity(data)
+    if(isValidTrade):
+        data = Data.Parse_data(data)
+        #universal.okay_code(data)
+        
+        logger.write_to_log(data)
+        
+        #parse data that we need
+        data = Data.data_in(data)
 
-    logger.write_to_log(f"Post data Processing: {data}")
     # Ensure that send_trade is called correctly within the application context\
     return
 
@@ -79,5 +85,14 @@ def start_account_tracking(client):
 
     
 
-     
-
+def contains_acct_activity(message):
+    """Checks if the string contains '"service":"ACCT_ACTIVITY"'."""
+    # Check if the substring '"service":"ACCT_ACTIVITY"' is in the message
+    if '"response":[{"service":"ACCT_ACTIVITY"' in message:
+        return False
+    if 'SUBSCRIBED' in message:
+        return False
+    if '"service":"ACCT_ACTIVITY"' in message:
+        return True
+    
+    return False

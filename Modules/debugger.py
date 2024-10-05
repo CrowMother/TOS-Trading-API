@@ -31,6 +31,7 @@ def handle_exception(exception, extraData=""):
 def log_error(error_message):
     """Logs an error message to errors.txt with a timestamp."""
     try:
+        print(f"[{u.get_time()}]\n{error_message}\n")
         # Open the file in append mode to log errors without overwriting
         with open('errors.txt', 'a') as error_file:
             # Write the timestamp and the error message

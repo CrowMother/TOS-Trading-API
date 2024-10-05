@@ -23,8 +23,13 @@ def webhookout(data):
             return {'status': 'data sent', 'response': response.json()}
         except requests.exceptions.RequestException as e:
             universal.error_code(f"Connection with server lost! {str(e)}")
+            #internally log the trade data below
+            
             return {'status': 'error', 'message': str(e)}
     
+
+#rewrite to modify to the above style of sending data
+
 #send heart beat notification to server
 @app.route('/send-heart', methods=["GET"])
 def send_heart(data):
