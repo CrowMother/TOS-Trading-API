@@ -98,6 +98,7 @@ class SubTrade():
         executionPrice = ""
         executionSignScale = ""
         underlyingSymbol = ""
+        buySellCode = ""
         routedAmount = "" #figure out what the acutal value for multilegs are for this
         multiLegLimitPriceType = ""
         multiLegStrategyType = ""
@@ -220,6 +221,9 @@ def load_trade(data):
             sub_trade.underlyingSymbol = recursive_search(json_data, "UnderlyingSymbol")
             print(f"Underlying Symbol: {sub_trade.underlyingSymbol}")
 
+
+            sub_trade.buySellCode = recursive_search(json_data, "BuySellCode")
+            print(f"BuySellCode : {sub_trade.buySellCode}")
             #add recursive search for loading multileg positions as well 
             sub_trade.multiLegStrategyType = "N/F"
 
@@ -327,6 +331,7 @@ def extract_sub_trade_data(sub_trade, trade_data):
         "executionPrice": pull_sub_trade_field(sub_trade, "executionPrice"),
         "executionSignScale": pull_sub_trade_field(sub_trade, "executionSignScale"),
         "underlyingSymbol": pull_sub_trade_field(sub_trade, "underlyingSymbol"),
+        "buySellCode": pull_sub_trade_field(sub_trade, "buySellCode"),
         "routedAmount": pull_sub_trade_field(sub_trade, "routedAmount"),
         "multiLegLimitPriceType": pull_sub_trade_field(sub_trade, "multiLegLimitPriceType"),
         "multiLegStrategyType": pull_sub_trade_field(sub_trade, "multiLegStrategyType")

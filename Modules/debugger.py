@@ -12,7 +12,7 @@ def log_trade(data):
     try:
         # Open the file in append mode to log errors without overwriting
         with open('trades.txt', 'a') as schwabDataFile:
-            schwabDataFile.write(f"[{u.get_time}] {data}\n")
+            schwabDataFile.write(f"[{u.get_time()}] {data}\n")
     except Exception as e:
         handle_exception(e, data)
 

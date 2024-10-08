@@ -4,6 +4,7 @@ from Modules import universal
 from Modules import streamer
 from Modules import test_data
 import datetime
+import time
 
 
 
@@ -11,7 +12,7 @@ print("welcome to the Schwab API test Suite")
 #links the bot to the client for placing and pulling information
 client = schwabdev.Client(secretkeys.get_app_key(), secretkeys.get_secret())  #create a client
 
-
+#grab the if it it is BTO CTO or other
 
 #start of the main close
 def main():
@@ -21,7 +22,7 @@ def main():
     streamer.set_streamer(client)
     # #streaming of real time account data with 
     streamer.start_account_tracking(client)
-
+    time.sleep(5)
 
 
 main()
