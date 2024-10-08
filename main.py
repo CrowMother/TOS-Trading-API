@@ -22,7 +22,7 @@ def main():
     streamer.set_streamer(client)
     # #streaming of real time account data with 
     streamer.start_account_tracking(client)
-    time.sleep(5)
+    time.sleep(15)
 
 
 main()

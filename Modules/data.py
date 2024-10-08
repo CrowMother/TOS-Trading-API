@@ -4,7 +4,6 @@ from Modules import universal
 from Modules import webhook
 from Modules import debugger
 from functools import reduce
-import operator
 import jmespath
 
 
@@ -195,7 +194,7 @@ def load_trade(data):
             return None
         trade = Trade()
         # Stores the SchwabOrderID from the first set of data
-        if data is not "" or not None:
+        if data != "" or not None:
             trade.schwabOrderID = recursive_search(data[0], "SchwabOrderID")
         print(f"SchwabOrderID: {trade.schwabOrderID}")
 
