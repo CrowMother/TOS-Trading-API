@@ -3,8 +3,8 @@ from Modules import secretkeys
 from Modules import universal
 from Modules import streamer
 from Modules import test_data
-import datetime
 import time
+import threading
 
 
 
@@ -17,12 +17,19 @@ client = schwabdev.Client(secretkeys.get_app_key(), secretkeys.get_secret())  #c
 #start of the main close
 def main():
     #send test data
-    test_data.send_test_trade_order()
+    #test_data.send_test_trade_order()
     
     streamer.set_streamer(client)
     # #streaming of real time account data with 
-    streamer.start_account_tracking(client)
-    time.sleep(15)
+    streamer_thread = threading.Thread(target=streamer.start_account_tracking, args=(client,))
+    streamer_thread.daemon = True
+    streamer_thread.start()
+
+    # Keep the main program alive indefinitely
+    while True:
+        #prevent this code from running too often to slow cpu usage
+        time.sleep(600)
+        pass
 
 
 main()

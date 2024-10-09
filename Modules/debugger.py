@@ -24,7 +24,7 @@ def handle_exception(exception, extraData=""):
         error_message = traceback.format_exc()
         
         # Log the exception using the log_error function
-        log_error(f"{error_message} : {extraData}")
+        log_error(f": {extraData}: {error_message} ")
     except Exception as e:
         print(f"Failed to handle exception: {e}")
 

@@ -14,19 +14,27 @@ import json
 
 #main handler for new data coming in
 def my_handler(data):
-    debugger.log_trade(data)
-    #sort out heart beats and login responses
-    isValidTrade = contains_acct_activity(data)
-    if(isValidTrade):
-        data = Data.Parse_data(data)
-        #universal.okay_code(data)
-        
-        logger.write_to_log(data)
-        
-        #parse data that we need
-        data = Data.data_in(data)
+    if isinstance(data, dict):
+        data_string = json.dumps(data)
+    else:
+        data_string = str(data)
 
-    # Ensure that send_trade is called correctly within the application context\
+    debugger.log_trade(data_string)
+    print(f"{data_string}\n\n")
+    
+    # Sort out heartbeats and login responses
+    isValidTrade = contains_acct_activity(data)
+    if isValidTrade:
+        # Since Data.Parse_data expects a JSON string, pass data_string
+        parsed_data = Data.Parse_data(data_string)
+        # universal.okay_code(parsed_data)
+        
+        logger.write_to_log(parsed_data)
+        
+        # Parse data that we need
+        processed_data = Data.data_in(parsed_data)
+
+    # Ensure that send_trade is called correctly within the application context
     return
 
 

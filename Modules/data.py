@@ -110,8 +110,6 @@ class SubTrade():
 #----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 #start of the data processing pipeline
 def data_in(data):
-    #sort out non-trades and heartbeats
-    
     
     #create a trade object and store the subtrades within it
     trade = load_trade(data)
@@ -278,11 +276,24 @@ def pull_json_data(json_data, path, default_value="N/F"):
     
 
 
+def preprocess_data(data):
+    """Parse JSON strings in the '3' field of data."""
+    for item in data:
+        if 'content' in item:
+            for content_item in item['content']:
+                if '3' in content_item and content_item['3']:
+                    try:
+                        content_item['3'] = json.loads(content_item['3'])
+                    except json.JSONDecodeError as e:
+                        print(f"Error decoding JSON in '3' field: {e}")
+    return data
+
+
 def Parse_data(json_string):
     start_search = 0
     jsonData = []
 
-    #loop through the data set looking for the fields needed
+    # Loop through the data set looking for the fields needed
     while True:
         # Find the start and end index of the "3" field
         startIndex, endIndex = find_end_of_field(json_string, "3", start_search)
@@ -307,7 +318,9 @@ def Parse_data(json_string):
             try:
                 # Parse the balanced content as JSON
                 data = json.loads(content[content.find('{'):])  # Parsing only the JSON part
-                #print(f"\n\nParsed Data: {data}")
+                # Parse the string in the "3" field as JSON
+                if "3" in data:
+                    data["3"] = json.loads(data["3"])  # Re-parse the string in "3" field
                 jsonData.append(data)
             except json.JSONDecodeError as e:
                 print(f"JSON Decode Error: {e}")
@@ -316,7 +329,8 @@ def Parse_data(json_string):
 
         # Update the starting search index for the next field to end of current field
         start_search = endIndex
-    return jsonData      
+    return jsonData
+      
                 
 
 
