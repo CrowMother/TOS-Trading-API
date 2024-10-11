@@ -2,8 +2,9 @@
 from Modules import universal
 from Modules import logger
 from Modules import secretkeys
-from Modules import data as Data
+from Modules import trade_processing 
 from Modules import debugger
+from Modules import JsonParser
 import time
 from flask import Flask, request, jsonify
 import requests
@@ -25,49 +26,36 @@ def my_handler(data):
     # Sort out heartbeats and login responses
     isValidTrade = contains_acct_activity(data)
     if isValidTrade:
-        # Since Data.Parse_data expects a JSON string, pass data_string
-        parsed_data = Data.Parse_data(data_string)
-        # universal.okay_code(parsed_data)
-        
-        logger.write_to_log(parsed_data)
-        
-        # Parse data that we need
-        processed_data = Data.data_in(parsed_data)
+        #parse the incoming data
+        dataDict = JsonParser.custom_json_parser(data_string)
+        trade = trade_processing.Trade()
 
-    # Ensure that send_trade is called correctly within the application context
+
+        #get current ID
+        tradeID = dataDict.get('LifecycleSchwabOrderID')
+        if tradeID is not None:
+            #pull trade off ID
+            oldData = trade_processing.load_trade_by_SchwabOrderID(tradeID)
+            #if trade exists load into trade
+            if oldData is not None:
+                trade.load_from_json(oldData)
+        #function to get older trades for the 2 parts to combine
+        #new trade if not found
+        
+        #load new / current data to the trade
+        trade.load_trade(dataDict)
+
+        #other logic to format and post to server
+        trade.send_trade()
+
+        #store the trade
+        trade.store_trade()
+
+
     return
 
 
 
-def remove_specific_characters(input_string, characters_to_remove):
-    return ''.join([char for char in input_string if char not in characters_to_remove])
-
-def parse_message(message):
-    try:
-        chars_to_remove = "\[]}{\"\'"
-        message = remove_specific_characters(message, chars_to_remove)
-        mes_parts = message.split(",")
-        #print(f"\nparts\n{mes_parts}")
-        return mes_parts
-    except Exception as e:
-        print(f"can't parse: {e}")
-
-def datafy(parsed_message):
-
-    data = {'time': universal.time_stamp()}
-
-    # Process each string in the parsed message
-    for item in parsed_message:
-        try:
-            # Split on ':' and strip the quotes and whitespace
-            key, value = item.split(':')
-            key = key.strip().strip('"')
-            value = value.strip().strip('"')
-            data[key] = value
-        except ValueError as e:
-            universal.error_code(f"Skipping invalid format: {item}. Error: {str(e)}")
-    
-    return data
 
 
 def set_streamer(client):
