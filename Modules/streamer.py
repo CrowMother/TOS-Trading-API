@@ -32,7 +32,7 @@ def my_handler(data):
 
 
         #get current ID
-        tradeID = dataDict.get('LifecycleSchwabOrderID')
+        tradeID = trade_processing.get_trade_ID(dataDict)
         if tradeID is not None:
             #pull trade off ID
             oldData = trade_processing.load_trade_by_SchwabOrderID(tradeID)

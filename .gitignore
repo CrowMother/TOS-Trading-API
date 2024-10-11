@@ -183,3 +183,4 @@ new_env/Scripts/activate
 new_env/pyvenv.cfg
 errors.txt
 trades.txt
+trade_data.json

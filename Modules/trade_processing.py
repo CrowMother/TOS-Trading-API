@@ -1,9 +1,11 @@
 import json
 import os
+import re
+import math
 from Modules import webhook
-from datetime import datetime
+from Modules import debugger
 
-
+#if some strikes are too high while others look at rounding method
 
 TRADES_DICT = {}
 
@@ -17,6 +19,7 @@ class Trade:
         self.executionPrice = None              
         self.executionSignScale = None  
         self.orderStatus = None  
+        self.underLyingSymbol = None
 
 
         self.firstExecutionPrice = None
@@ -28,10 +31,13 @@ class Trade:
     def load_trade(self, dataDict):
         # Only load data if the attribute is currently None (or its initial value)
         if self.SchwabOrderID is None:
-            self.SchwabOrderID = dataDict.get('LifecycleSchwabOrderID')
+            schwabOrderID = dataDict.get('3')
+            if schwabOrderID is not None:
+                if len(schwabOrderID) > 1:
+                    self.SchwabOrderID = schwabOrderID[1]
         
         if self.openClosePositionCode is None:
-            self.openClosePositionCode = dataDict.get('OrderTypeCode')
+            self.openClosePositionCode = dataDict.get('OpenClosePositionCode')
         
         if self.buySellCode is None:
             self.buySellCode = dataDict.get('BuySellCode')
@@ -41,13 +47,16 @@ class Trade:
         
         #Execution needs both signScale and the price
         if self.executionPrice is None:
-            limit_price = dataDict.get('ExecutionPrice', [])
+            limit_price = dataDict.get('ExecutionPrice')
             if limit_price is not None:
                 if len(limit_price) > 1:
                     self.executionPrice = limit_price[1]  # Assuming second value is the price
         
         if self.executionSignScale is None:
             self.executionSignScale = dataDict.get('signScale')
+
+        if self.underLyingSymbol is None:
+            self.underLyingSymbol = dataDict.get('UnderlyingSymbol')
         
         if self.orderStatus is None:
             self.orderStatus = dataDict.get('2')
@@ -62,8 +71,10 @@ class Trade:
             "ExecutionPrice": self.executionPrice,
             "ExecutionSignScale": self.executionSignScale,
             "OrderStatus": self.orderStatus,
+            "UnderLyingSymbol": self.underLyingSymbol,
             "FirstExecutionPrice": self.firstExecutionPrice,
             "SecondExecutionPrice": self.secondExecutionPrice
+            
         }
 
     def store_trade(self, file_name="trade_data.json"):
@@ -94,8 +105,11 @@ class Trade:
 
     def format_message(self):
         msgJSON = {}
-        msgJSON['time'] = datetime.now()
-        msgJSON['message'] = self.shortDescriptionText
+
+        date, strike, callOrPut = split_short_description(self.shortDescriptionText)
+
+        executionPrice = self.calculateExecution()
+        msgJSON['message'] = f"{self.underLyingSymbol} ${strike} {callOrPut} {date} @ ${executionPrice}: {self.openClosePositionCode}"
         return msgJSON
 
     def send_trade(self):
@@ -106,10 +120,12 @@ class Trade:
                 self.shortDescriptionText, 
                 self.executionPrice, 
                 self.executionSignScale, 
-                self.orderStatus]):
+                self.orderStatus,
+                self.underLyingSymbol]):
             # format data into a message
             msgJSON = self.format_message()
 
+            self.firstExecutionPrice = self.executionPrice
 
             #send the data via webhook
             webhook.webhookout(msgJSON)
@@ -129,6 +145,7 @@ class Trade:
             self.openClosePositionCode = dataDict.get("OpenClosePositionCode", self.openClosePositionCode)
             self.buySellCode = dataDict.get("BuySellCode", self.buySellCode)
             self.shortDescriptionText = dataDict.get("ShortDescriptionText", self.shortDescriptionText)
+            self.underLyingSymbol = dataDict.get("UnderLyingSymbol", self.underLyingSymbol)
             self.firstExecutionPrice = dataDict.get("FirstExecutionPrice")
             self.secondExecutionPrice = dataDict.get("SecondExecutionPrice")
 
@@ -140,6 +157,13 @@ class Trade:
 
             self.executionSignScale = dataDict.get("ExecutionSignScale", self.executionSignScale)
             self.orderStatus = dataDict.get("OrderStatus", self.orderStatus)
+
+
+    def calculateExecution(self):
+        dividor = 10 ** math.floor(int(self.executionSignScale) / 2)
+        return (float(self.executionPrice) / dividor)
+
+
 
 def load_trade_by_SchwabOrderID(SchwabOrderID, file_name="trade_data.json"):
         # Load the JSON data from the file
@@ -170,3 +194,24 @@ def load_trade_by_SchwabOrderID(SchwabOrderID, file_name="trade_data.json"):
             return None
 
  
+def get_trade_ID(dataDict):
+    orderID = dataDict.get('3')
+    if orderID is not None:
+        if len(orderID) > 1:
+            SchwabOrderID = orderID[1]
+            return SchwabOrderID
+
+def split_short_description(inputString):
+    try:
+        # Regular expression to find the date (MM/DD/YYYY)
+        pattern = r'(\d{2}/\d{2}/\d{4})'
+
+        # Use re.split to split the string at the date
+        split_values = re.split(pattern, inputString)
+        date = split_values[1]
+        strikeCorP = split_values[2]
+        strike, callOrPut = strikeCorP.split()
+
+        return date, strike, callOrPut
+    except Exception as e:
+        debugger.handle_exception(e, "Error in split_short_description")
