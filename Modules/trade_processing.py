@@ -29,37 +29,24 @@ class Trade:
     
 
     def load_trade(self, dataDict):
-        # Only load data if the attribute is currently None (or its initial value)
-        if self.SchwabOrderID is None:
-            schwabOrderID = dataDict.get('3')
-            if schwabOrderID is not None:
-                if len(schwabOrderID) > 1:
-                    self.SchwabOrderID = schwabOrderID[1]
-        
-        if self.openClosePositionCode is None:
-            self.openClosePositionCode = dataDict.get('OpenClosePositionCode')
-        
-        if self.buySellCode is None:
-            self.buySellCode = dataDict.get('BuySellCode')
-        
-        if self.shortDescriptionText is None:
-            self.shortDescriptionText = dataDict.get('ShortDescriptionText')
-        
-        #Execution needs both signScale and the price
-        if self.executionPrice is None:
-            limit_price = dataDict.get('ExecutionPrice')
-            if limit_price is not None:
-                if len(limit_price) > 1:
-                    self.executionPrice = limit_price[1]  # Assuming second value is the price
-        
-        if self.executionSignScale is None:
-            self.executionSignScale = dataDict.get('signScale')
+        """
+        Loads the trade data from the given dictionary, overwriting any existing data only if it is None.
+        """
+        self._load_field('SchwabOrderID', dataDict.get('3'))
+        self._load_field('openClosePositionCode', dataDict.get('OpenClosePositionCode'))
+        self._load_field('buySellCode', dataDict.get('BuySellCode'))
+        self._load_field('shortDescriptionText', dataDict.get('ShortDescriptionText'))
+        self._load_field('executionPrice', dataDict.get('ExecutionPrice')[1] if dataDict.get('ExecutionPrice') else None)
+        self._load_field('executionSignScale', dataDict.get('signScale'))
+        self._load_field('underLyingSymbol', dataDict.get('UnderlyingSymbol'))
+        self._load_field('orderStatus', dataDict.get('2'))
 
-        if self.underLyingSymbol is None:
-            self.underLyingSymbol = dataDict.get('UnderlyingSymbol')
-        
-        if self.orderStatus is None:
-            self.orderStatus = dataDict.get('2')
+    def _load_field(self, field_name, value):
+        """
+        Helper function to load a field of the Trade object from the given dictionary, overwriting only if the field is currently None.
+        """
+        if getattr(self, field_name) is None:
+            setattr(self, field_name, value)
 
     def to_dict(self):
         # Converts the Trade object into a dictionary for easy comparison and storage
@@ -78,38 +65,44 @@ class Trade:
         }
 
     def store_trade(self, file_name="trade_data.json"):
-        # Convert the current trade to a dictionary
+        """
+        Stores the current trade to a JSON file. If the file already contains
+        a trade with the same SchwabOrderID, it is replaced with the new trade.
+        Otherwise, the new trade is appended to the list of existing trades.
+        """
         trade_data = self.to_dict()
 
-        # Load existing trades from the JSON file, if the file exists
-        if os.path.exists(file_name):
+        try:
             with open(file_name, 'r') as file:
-                try:
-                    existing_trades = json.load(file)
-                    # Ensure it's a list
-                    if not isinstance(existing_trades, list):
-                        existing_trades = []
-                except json.JSONDecodeError:
-                    existing_trades = []
-        else:
+                existing_trades = json.load(file)
+        except FileNotFoundError:
+            existing_trades = []
+        except json.JSONDecodeError:
             existing_trades = []
 
-        # Append the new trade to the list of existing trades
-        existing_trades.append(trade_data)
+        if not isinstance(existing_trades, list):
+            existing_trades = []
 
-        # Write the updated list of trades back to the file
+        for i, existing_trade in enumerate(existing_trades):
+            if existing_trade["SchwabOrderID"] == self.SchwabOrderID:
+                existing_trades[i] = trade_data
+                break
+        else:
+            existing_trades.append(trade_data)
+
         with open(file_name, 'w') as file:
             json.dump(existing_trades, file, indent=4)
-
-        print(f"New trade data appended to {file_name}")
 
     def format_message(self):
         msgJSON = {}
 
         date, strike, callOrPut = split_short_description(self.shortDescriptionText)
 
+        openClosePosition = open_close_position(self.openClosePositionCode)
+
         executionPrice = self.calculateExecution()
-        msgJSON['message'] = f"{self.underLyingSymbol} ${strike} {callOrPut} {date} @ ${executionPrice}: {self.openClosePositionCode}"
+
+        msgJSON['message'] = f"{self.underLyingSymbol} ${strike} {callOrPut} {date} @ ${executionPrice}: {openClosePosition}"
         return msgJSON
 
     def send_trade(self):
@@ -125,14 +118,28 @@ class Trade:
             # format data into a message
             msgJSON = self.format_message()
 
-            self.firstExecutionPrice = self.executionPrice
+            # if first execution, set first execution price
+            if self.firstExecutionPrice is None or self.openClosePositionCode == "PCOpen":
+                self.firstExecutionPrice = self.executionPrice
+                self.executionPrice = None
+            # if second execution, set second execution price
+            else:
+                self.secondExecutionPrice = self.executionPrice
+                self.executionPrice = None
+
+            # if second execution, calculate gains/loss
+            if self.firstExecutionPrice is not None and self.secondExecutionPrice is not None:
+                # calculate gains/loss
+                gainLoss = self.calculateGainsLoss()
+                # append gain/loss to message
+                # find solution to fix to 2 decimal points
+                msgJSON['message'] += f" ({gainLoss}%)"
 
             #send the data via webhook
             webhook.webhookout(msgJSON)
         else:
             # Do nothing if any field is missing
-            print("Some required fields are missing, trade not sent.")
-        
+            print("Some required fields are missing, trade not sent.")        
     
 
        
@@ -158,12 +165,15 @@ class Trade:
             self.executionSignScale = dataDict.get("ExecutionSignScale", self.executionSignScale)
             self.orderStatus = dataDict.get("OrderStatus", self.orderStatus)
 
-
     def calculateExecution(self):
         dividor = 10 ** math.floor(int(self.executionSignScale) / 2)
         return (float(self.executionPrice) / dividor)
 
 
+    def calculateGainsLoss(self):
+        gainLoss = float(self.secondExecutionPrice) / float(self.firstExecutionPrice)
+        gainLossPercentage = (gainLoss - 1) * 100
+        return gainLossPercentage
 
 def load_trade_by_SchwabOrderID(SchwabOrderID, file_name="trade_data.json"):
         # Load the JSON data from the file
@@ -215,3 +225,11 @@ def split_short_description(inputString):
         return date, strike, callOrPut
     except Exception as e:
         debugger.handle_exception(e, "Error in split_short_description")
+
+def open_close_position(openClosePositionCode):
+    if openClosePositionCode == "PCOpen":
+        return "Open Position"
+    if openClosePositionCode == "PCClose":
+        return "Close Position"
+    else:
+        return openClosePositionCode

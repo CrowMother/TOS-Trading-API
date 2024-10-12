@@ -15,6 +15,11 @@ import json
 
 #main handler for new data coming in
 def my_handler(data):
+    """Handle incoming data from the streamer.
+
+    Args:
+        data: The incoming data from the streamer.
+    """
     if isinstance(data, dict):
         data_string = json.dumps(data)
     else:
@@ -26,34 +31,38 @@ def my_handler(data):
     # Sort out heartbeats and login responses
     isValidTrade = contains_acct_activity(data)
     if isValidTrade:
-        #parse the incoming data
+        # Parse the incoming data
         dataDict = JsonParser.custom_json_parser(data_string)
         trade = trade_processing.Trade()
 
-
-        #get current ID
-        tradeID = trade_processing.get_trade_ID(dataDict)
-        if tradeID is not None:
-            #pull trade off ID
-            oldData = trade_processing.load_trade_by_SchwabOrderID(tradeID)
-            #if trade exists load into trade
-            if oldData is not None:
-                trade.load_from_json(oldData)
-        #function to get older trades for the 2 parts to combine
-        #new trade if not found
-        
-        #load new / current data to the trade
+        try:
+            # Get current ID
+            tradeID = trade_processing.get_trade_ID(dataDict)
+            if tradeID is not None:
+                # Pull trade off ID
+                oldData = trade_processing.load_trade_by_SchwabOrderID(tradeID)
+                # If trade exists load into trade
+                if oldData is not None:
+                    trade.load_from_json(oldData)
+        except Exception as e:
+            debugger.handle_exception(e, "Error loading trade from ID")
+            
+        # Load new / current data to the trade
         trade.load_trade(dataDict)
 
-        #other logic to format and post to server
-        trade.send_trade()
+        try:
+            # Other logic to format and post to server
+            trade.send_trade()
+        except Exception as e:
+            debugger.handle_exception(e, "Error sending trade")
 
-        #store the trade
-        trade.store_trade()
-
+        try:
+            # Store the trade
+            trade.store_trade()
+        except Exception as e:
+            debugger.handle_exception(e, "Error storing trade")
 
     return
-
 
 
 

@@ -7,13 +7,24 @@ import datetime
 
 #this is a file for enabling debugger level logging for trades tracker
 
+def debugger_level():
+    #configuration for debugging level
+    return
 
 def log_trade(data):
+    """
+    Logs a trade to trades.txt with a timestamp.
+
+    Args:
+        data (str): The trade data to be logged.
+    """
     try:
         # Open the file in append mode to log errors without overwriting
         with open('trades.txt', 'a') as schwabDataFile:
+            # Write the timestamp and the trade data
             schwabDataFile.write(f"[{u.get_time()}] {data}\n")
     except Exception as e:
+        # Handle any exceptions that occur while logging the trade
         handle_exception(e, data)
 
 
@@ -38,3 +49,7 @@ def log_error(error_message):
             error_file.write(f"[{u.get_time()}] {error_message}\n")
     except Exception as e:
         print(f"Failed to log error: {e}")
+
+def customPrint(message):
+    
+    print(message)
