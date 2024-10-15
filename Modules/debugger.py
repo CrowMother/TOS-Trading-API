@@ -22,7 +22,8 @@ def log_trade(data):
         # Open the file in append mode to log errors without overwriting
         with open('trades.txt', 'a') as schwabDataFile:
             # Write the timestamp and the trade data
-            schwabDataFile.write(f"[{u.get_time()}] {data}\n")
+            schwabDataFile.write(f"[{u.get_time()}]$\n {data}\n")
+            print(f"Trade logged at[{u.get_time()}]$\n{data}")
     except Exception as e:
         # Handle any exceptions that occur while logging the trade
         handle_exception(e, data)

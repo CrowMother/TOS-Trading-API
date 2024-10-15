@@ -18,13 +18,18 @@ class Trade:
         self.shortDescriptionText = None         
         self.executionPrice = None              
         self.executionSignScale = None  
-        self.orderStatus = None  
         self.underLyingSymbol = None
+        
+        self.date = None
+        self.orderStatus = None  
+
+        self.isPlaced = False
+        self.isCompleted = False
+        self.isMultiLeg = False
 
 
         self.firstExecutionPrice = None
         self.secondExecutionPrice = None
-
 
     
 
@@ -32,16 +37,17 @@ class Trade:
         """
         Loads the trade data from the given dictionary, overwriting any existing data only if it is None.
         """
-        self._load_field('SchwabOrderID', dataDict.get('3'))
-        self._load_field('openClosePositionCode', dataDict.get('OpenClosePositionCode'))
-        self._load_field('buySellCode', dataDict.get('BuySellCode'))
-        self._load_field('shortDescriptionText', dataDict.get('ShortDescriptionText'))
-        self._load_field('executionPrice', dataDict.get('ExecutionPrice')[1] if dataDict.get('ExecutionPrice') else None)
-        self._load_field('executionSignScale', dataDict.get('signScale'))
-        self._load_field('underLyingSymbol', dataDict.get('UnderlyingSymbol'))
-        self._load_field('orderStatus', dataDict.get('2'))
+        self.load_field('SchwabOrderID', dataDict.get('LifecycleSchwabOrderID'))
+        self.load_field('openClosePositionCode', dataDict.get('EquityOrderLeg')[2] if dataDict.get('EquityOrderLeg') else None)
+        self.load_field('buySellCode', dataDict.get('BuySellCode'))
+        self.load_field('shortDescriptionText', dataDict.get('ShortDescriptionText'))
+        self.load_field('executionPrice', dataDict.get('ExecutionPrice')[1] if dataDict.get('ExecutionPrice') else None)
+        #look for execution sign scale on data set with it
+        self.load_field('executionSignScale', dataDict.get('ExecutionPrice-signScale'))
+        self.load_field('underLyingSymbol', dataDict.get('UnderlyingSymbol'))
+        self.load_field('orderStatus', dataDict.get('2'))
 
-    def _load_field(self, field_name, value):
+    def load_field(self, field_name, value):
         """
         Helper function to load a field of the Trade object from the given dictionary, overwriting only if the field is currently None.
         """
@@ -118,16 +124,7 @@ class Trade:
             # format data into a message
             msgJSON = self.format_message()
 
-            # if first execution, set first execution price
-            if self.firstExecutionPrice is None or self.openClosePositionCode == "PCOpen":
-                self.firstExecutionPrice = self.executionPrice
-                self.executionPrice = None
-            # if second execution, set second execution price
-            else:
-                self.secondExecutionPrice = self.executionPrice
-                self.executionPrice = None
-
-            # if second execution, calculate gains/loss
+            # if first and second executions exist, calculate gains/loss
             if self.firstExecutionPrice is not None and self.secondExecutionPrice is not None:
                 # calculate gains/loss
                 gainLoss = self.calculateGainsLoss()
@@ -164,6 +161,9 @@ class Trade:
 
             self.executionSignScale = dataDict.get("ExecutionSignScale", self.executionSignScale)
             self.orderStatus = dataDict.get("OrderStatus", self.orderStatus)
+
+
+
 
     def calculateExecution(self):
         dividor = 10 ** math.floor(int(self.executionSignScale) / 2)

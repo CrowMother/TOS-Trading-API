@@ -26,30 +26,40 @@ def my_handler(data):
         data_string = str(data)
 
     debugger.log_trade(data_string)
-    print(f"{data_string}\n\n")
     
     # Sort out heartbeats and login responses
     isValidTrade = contains_acct_activity(data)
     if isValidTrade:
+        LoadedTradeData = None
+
         # Parse the incoming data
         dataDict = JsonParser.custom_json_parser(data_string)
-        trade = trade_processing.Trade()
 
-        try:
-            # Get current ID
-            tradeID = trade_processing.get_trade_ID(dataDict)
-            if tradeID is not None:
-                # Pull trade off ID
-                oldData = trade_processing.load_trade_by_SchwabOrderID(tradeID)
-                # If trade exists load into trade
-                if oldData is not None:
-                    trade.load_from_json(oldData)
-        except Exception as e:
-            debugger.handle_exception(e, "Error loading trade from ID")
-            
-        # Load new / current data to the trade
+        #create trade object
+        trade = trade_processing.Trade()
         trade.load_trade(dataDict)
 
+        print(trade.SchwabOrderID)
+
+        #load trades from json with matching SchwabOrderID if exists in trade_data.json
+        #if not found, create new trade
+        if trade.SchwabOrderID is not None:
+            tradeID = (trade.SchwabOrderID)
+            LoadedTradeData = trade_processing.load_trade_by_SchwabOrderID(tradeID)
+            LoadedTrade = trade_processing.Trade()
+            LoadedTrade = LoadedTrade.load_from_json(LoadedTradeData)
+
+            #combine trade and loaded trade objects
+            trade = combine_trades(trade, LoadedTrade)
+
+        #save the trade
+        try:
+            trade.store_trade()
+        except Exception as e:
+            debugger.handle_exception(e, "Error storing trade")
+
+
+        #send the trade
         try:
             # Other logic to format and post to server
             trade.send_trade()
@@ -71,7 +81,28 @@ def set_streamer(client):
     global streamer
     streamer = client.stream
 
+def combine_trades(trade, LoadedTrade):
+    """Combine the trade and loaded trade objects replacing loadedTrade data with the new trade data.
 
+    Args:
+        trade (Trade): The new trade object.
+        LoadedTrade (Trade): The loaded trade object.
+    Returns:
+        Trade: The combined trade object.
+    """
+    LoadedTrade.SchwabOrderID = trade.SchwabOrderID
+    LoadedTrade.openClosePositionCode = trade.openClosePositionCode
+    LoadedTrade.buySellCode = trade.buySellCode
+    LoadedTrade.shortDescriptionText = trade.shortDescriptionText
+    LoadedTrade.executionPrice = trade.executionPrice
+    LoadedTrade.executionSignScale = trade.executionSignScale
+    LoadedTrade.orderStatus = trade.orderStatus
+    LoadedTrade.date = trade.date
+    if trade.firstExecutionPrice is not None:
+        LoadedTrade.firstExecutionPrice = trade.firstExecutionPrice
+    if trade.secondExecutionPrice is not None:
+        LoadedTrade.secondExecutionPrice = trade.secondExecutionPrice
+    return LoadedTrade
 
 
 # # Tracking for stock pricing of AMD and intel

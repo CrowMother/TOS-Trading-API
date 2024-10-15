@@ -11,15 +11,24 @@ def split_at_comma(data):
 
 def split_at_colon(data):
     dataDict = {}
+    previousKey = ''
     for entry in data:
         key, value = entry.split(':', 1)
 
+
         key = clean_string(key)
         value = clean_string(value)
+        #check if key is in dataDict and modify name if it is
+        if key in dataDict:
+            #key gets position number added to end
+            key = f'{previousKey}-{key}'
+
 
         value = split_extra(value)
         #print(f"{key} : {value}")
         dataDict[key] = value
+
+        previousKey = key
     return dataDict
 
 def split_extra(value, splitVal=':'):
@@ -35,10 +44,16 @@ def clean_string(s):
         
 
 def custom_json_parser(s):
+
     try:
         data = split_at_comma(s)
         dataDict = split_at_colon(data)
 
     except Exception as e:
         debugger.handle_exception(e, "Error in custom_json_parser")
-    return dataDict
+
+    #reorder dataDict in aplhabetical order for readability
+    keys = list(dataDict.keys())
+    keys.sort()
+    sortedDataDict = {k: dataDict[k] for k in keys}
+    return sortedDataDict
