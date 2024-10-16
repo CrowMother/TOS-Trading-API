@@ -37,7 +37,7 @@ class Trade:
         """
         Loads the trade data from the given dictionary, overwriting any existing data only if it is None.
         """
-        self.load_field('SchwabOrderID', dataDict.get('LifecycleSchwabOrderID'))
+        self.load_field('SchwabOrderID', dataDict.get('3')[1] if dataDict.get('3') else None)
         self.load_field('openClosePositionCode', dataDict.get('EquityOrderLeg')[2] if dataDict.get('EquityOrderLeg') else None)
         self.load_field('buySellCode', dataDict.get('BuySellCode'))
         self.load_field('shortDescriptionText', dataDict.get('ShortDescriptionText'))
@@ -54,21 +54,7 @@ class Trade:
         if getattr(self, field_name) is None:
             setattr(self, field_name, value)
 
-    def to_dict(self):
-        # Converts the Trade object into a dictionary for easy comparison and storage
-        return {
-            "SchwabOrderID": self.SchwabOrderID,
-            "OpenClosePositionCode": self.openClosePositionCode,
-            "BuySellCode": self.buySellCode,
-            "ShortDescriptionText": self.shortDescriptionText,
-            "ExecutionPrice": self.executionPrice,
-            "ExecutionSignScale": self.executionSignScale,
-            "OrderStatus": self.orderStatus,
-            "UnderLyingSymbol": self.underLyingSymbol,
-            "FirstExecutionPrice": self.firstExecutionPrice,
-            "SecondExecutionPrice": self.secondExecutionPrice
-            
-        }
+
 
     def store_trade(self, file_name="trade_data.json"):
         """
@@ -76,8 +62,6 @@ class Trade:
         a trade with the same SchwabOrderID, it is replaced with the new trade.
         Otherwise, the new trade is appended to the list of existing trades.
         """
-        trade_data = self.to_dict()
-
         try:
             with open(file_name, 'r') as file:
                 existing_trades = json.load(file)
@@ -91,10 +75,10 @@ class Trade:
 
         for i, existing_trade in enumerate(existing_trades):
             if existing_trade["SchwabOrderID"] == self.SchwabOrderID:
-                existing_trades[i] = trade_data
+                existing_trades[i] = self.__dict__
                 break
         else:
-            existing_trades.append(trade_data)
+            existing_trades.append(self.__dict__)
 
         with open(file_name, 'w') as file:
             json.dump(existing_trades, file, indent=4)
@@ -140,27 +124,12 @@ class Trade:
     
 
        
-    def load_from_json(self, dataDict):
-            """
-            This function loads trade data from a dictionary (like the one parsed from a JSON file).
-            """
-            # Load data from the JSON structure, checking for None values
-            self.SchwabOrderID = dataDict.get("SchwabOrderID", self.SchwabOrderID)
-            self.openClosePositionCode = dataDict.get("OpenClosePositionCode", self.openClosePositionCode)
-            self.buySellCode = dataDict.get("BuySellCode", self.buySellCode)
-            self.shortDescriptionText = dataDict.get("ShortDescriptionText", self.shortDescriptionText)
-            self.underLyingSymbol = dataDict.get("UnderLyingSymbol", self.underLyingSymbol)
-            self.firstExecutionPrice = dataDict.get("FirstExecutionPrice")
-            self.secondExecutionPrice = dataDict.get("SecondExecutionPrice")
-
-            # Handling None values, in case the ExecutionPrice is missing in the JSON
-            if dataDict.get("ExecutionPrice") is not None:
-                self.executionPrice = dataDict.get("ExecutionPrice", self.executionPrice)
-            
-
-
-            self.executionSignScale = dataDict.get("ExecutionSignScale", self.executionSignScale)
-            self.orderStatus = dataDict.get("OrderStatus", self.orderStatus)
+    def load_from_json(self, trade):
+        """
+        This function loads trade data from a Trade Dictionary
+        """
+        for key in trade:
+            setattr(self, key, trade[key])
 
 
 

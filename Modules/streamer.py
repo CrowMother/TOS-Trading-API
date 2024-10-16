@@ -45,12 +45,14 @@ def my_handler(data):
         #if not found, create new trade
         if trade.SchwabOrderID is not None:
             tradeID = (trade.SchwabOrderID)
+            #check if trade exists in trade_data.json
             LoadedTradeData = trade_processing.load_trade_by_SchwabOrderID(tradeID)
-            LoadedTrade = trade_processing.Trade()
-            LoadedTrade = LoadedTrade.load_from_json(LoadedTradeData)
+            if LoadedTradeData is not None:
+                LoadedTrade = trade_processing.Trade()
+                LoadedTrade.load_from_json(LoadedTradeData)
 
-            #combine trade and loaded trade objects
-            trade = combine_trades(trade, LoadedTrade)
+                #combine trade and loaded trade objects
+                trade = combine_trades(trade, LoadedTrade)
 
         #save the trade
         try:
@@ -90,18 +92,8 @@ def combine_trades(trade, LoadedTrade):
     Returns:
         Trade: The combined trade object.
     """
-    LoadedTrade.SchwabOrderID = trade.SchwabOrderID
-    LoadedTrade.openClosePositionCode = trade.openClosePositionCode
-    LoadedTrade.buySellCode = trade.buySellCode
-    LoadedTrade.shortDescriptionText = trade.shortDescriptionText
-    LoadedTrade.executionPrice = trade.executionPrice
-    LoadedTrade.executionSignScale = trade.executionSignScale
-    LoadedTrade.orderStatus = trade.orderStatus
-    LoadedTrade.date = trade.date
-    if trade.firstExecutionPrice is not None:
-        LoadedTrade.firstExecutionPrice = trade.firstExecutionPrice
-    if trade.secondExecutionPrice is not None:
-        LoadedTrade.secondExecutionPrice = trade.secondExecutionPrice
+    for key in LoadedTrade.__dict__:
+        setattr(LoadedTrade, key, getattr(trade, key) if getattr(trade, key) is not None else getattr(LoadedTrade, key))
     return LoadedTrade
 
 
