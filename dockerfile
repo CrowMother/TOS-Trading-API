@@ -1,6 +1,17 @@
 # 1. Use an official Python runtime as a parent image
 FROM python:3.11-slim
 
+# Set the timezone environment variable (adjust to your desired timezone)
+ENV TZ=America/New_York
+
+# Install tzdata and set the timezone
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive \
+    apt-get install -y --no-install-recommends tzdata && \
+    ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && \
+    echo $TZ > /etc/timezone && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
 # 2. Set the working directory inside the container
 WORKDIR /app
 
