@@ -1,8 +1,5 @@
 import schwabdev #import the package
-from Modules import secretkeys
-from Modules import streamer
-import time
-import threading
+
 
 
 #hit play on this one Josh
@@ -10,7 +7,8 @@ import threading
 
 print("welcome to the Schwab API test Suite")
 #links the bot to the client for placing and pulling information
-client = schwabdev.Client(secretkeys.get_app_key(), secretkeys.get_secret())  #create a client
+client = schwabdev.Client("app key", "secret key")  #create a client
+
 
 #start of the main close
 def main():
@@ -21,5 +19,6 @@ def main():
 
 
 
-
-main()
+def set_streamer(client):
+    global streamer
+    streamer = client.stream
