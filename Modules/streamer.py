@@ -25,11 +25,12 @@ def my_handler(data):
     else:
         data_string = str(data)
 
-    debugger.log_trade(data_string)
+    print(data_string)
     
     # Sort out heartbeats and login responses
     isValidTrade = contains_acct_activity(data)
     if isValidTrade:
+        debugger.log_trade(data_string)
         LoadedTradeData = None
 
         # Parse the incoming data
