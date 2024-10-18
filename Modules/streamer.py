@@ -20,17 +20,18 @@ def my_handler(data):
     Args:
         data: The incoming data from the streamer.
     """
+    db = debugger.debugger()
     if isinstance(data, dict):
         data_string = json.dumps(data)
     else:
         data_string = str(data)
-
-    print(data_string)
+    
+    db.log_trade(data_string)
     
     # Sort out heartbeats and login responses
     isValidTrade = contains_acct_activity(data)
     if isValidTrade:
-        debugger.log_trade(data_string)
+        
         LoadedTradeData = None
 
         # Parse the incoming data
