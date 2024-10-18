@@ -1,35 +1,24 @@
 import schwabdev #import the package
-from Modules import secretkeys
-from Modules import universal
-from Modules import streamer
-from Modules import test_data
-import time
-import threading
 
+
+
+#hit play on this one Josh
 
 
 print("welcome to the Schwab API test Suite")
 #links the bot to the client for placing and pulling information
-client = schwabdev.Client(secretkeys.get_app_key(), secretkeys.get_secret())  #create a client
+client = schwabdev.Client("app key", "secret key")  #create a client
 
-#grab the if it it is BTO CTO or other
 
 #start of the main close
 def main():
-    #send test data
-    test_data.send_test_trade_order()
-    
+
     streamer.set_streamer(client)
     # #streaming of real time account data with 
-    streamer_thread = threading.Thread(target=streamer.start_account_tracking, args=(client,))
-    streamer_thread.daemon = True
-    streamer_thread.start()
-
-    # Keep the main program alive indefinitely
-    while True:
-        #prevent this code from running too often to slow cpu usage
-        time.sleep(600)
-        pass
+    target=streamer.start_account_tracking(client)
 
 
-main()
+
+def set_streamer(client):
+    global streamer
+    streamer = client.stream
