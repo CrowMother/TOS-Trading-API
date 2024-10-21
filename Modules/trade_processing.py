@@ -118,6 +118,7 @@ class Trade:
 
             #send the data via webhook
             webhook.webhookout(msgJSON)
+            
         else:
             # Do nothing if any field is missing
             print("Some required fields are missing, trade not sent.")        
@@ -140,9 +141,46 @@ class Trade:
 
 
     def calculateGainsLoss(self):
+        date, strike, callOrPut = split_short_description(self.shortDescriptionText)
         gainLoss = float(self.secondExecutionPrice) / float(self.firstExecutionPrice)
         gainLossPercentage = (gainLoss - 1) * 100
+        if callOrPut == "Put":
+            gainLossPercentage = gainLossPercentage * -1
         return gainLossPercentage
+    
+
+    def check_if_placed(self):
+        if self.orderStatus == "OrderAccepted":
+            self.isPlaced = True
+        else:
+            self.isPlaced = False
+
+        
+    def combine_completed_trades(self):
+        if self.isPlaced == False:
+            return None
+        
+        firstTrade = load_trade_by_short_description(self.shortDescriptionText)
+        if firstTrade is None:  
+            return None
+
+        # check if both trades have the same underlying symbol
+        if self.underLyingSymbol != firstTrade.underLyingSymbol:
+            return None
+
+        # check if both trades have the same short description
+        if self.shortDescriptionText != firstTrade.shortDescriptionText:
+            return None
+        if firstTrade.executionPrice is None:
+            return None
+        if self.executionPrice is None:
+            return None
+        # set the first execution price to first trade
+        self.firstExecutionPrice = firstTrade.executionPrice
+        # set the second execution price to second  trade
+        self.secondExecutionPrice = self.executionPrice
+        self.isCompleted = True
+
 
 def load_trade_by_SchwabOrderID(SchwabOrderID, file_name="trade_data.json"):
         # Load the JSON data from the file
@@ -171,6 +209,37 @@ def load_trade_by_SchwabOrderID(SchwabOrderID, file_name="trade_data.json"):
         except json.JSONDecodeError:
             print("Error decoding the JSON file.")
             return None
+        
+def load_trade_by_short_description(short_description, file_name="trade_data.json"):
+    # Load the JSON data from the file
+    if not os.path.exists(file_name):
+        print(f"File {file_name} not found.")
+        return None
+
+    try:
+        with open(file_name, 'r') as file:
+            trades = json.load(file)
+
+            # Ensure trades is a list
+            if not isinstance(trades, list):
+                print("Invalid data format: Expected a list of trades.")
+                return None
+
+            # Iterate over each trade dictionary in the list
+            for trade in trades:
+                if trade.get("shortDescriptionText") == short_description:
+                    tradeObject = Trade()
+                    tradeObject.load_from_json(trade)
+                    return tradeObject  # Return the matching trade
+
+            # If no match is found
+            print(f"No trade found with shortDescriptionText: {short_description}")
+            return None
+
+    except json.JSONDecodeError:
+        print("Error decoding the JSON file.")
+        return None
+
 
  
 def get_trade_ID(dataDict):

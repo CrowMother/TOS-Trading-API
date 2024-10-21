@@ -41,6 +41,9 @@ def my_handler(data):
         trade = trade_processing.Trade()
         trade.load_trade(dataDict)
 
+        #fill in first and second execution prices if executionPrice exists
+
+
         print(trade.SchwabOrderID)
 
         #load trades from json with matching SchwabOrderID if exists in trade_data.json
@@ -55,6 +58,14 @@ def my_handler(data):
 
                 #combine trade and loaded trade objects
                 trade = combine_trades(trade, LoadedTrade)
+
+        #check if trade is placed
+        trade.check_if_placed()
+
+        #check if trade is complete
+        trade.combine_completed_trades()
+
+
 
         #save the trade
         try:
@@ -110,6 +121,7 @@ def start_account_tracking(client):
     if client is None:
         universal.error_code("Error Client is a None Type")
     else:
+        #look into turning tracker off during market close
         streamer.start(my_handler)
         client.stream.send(client.stream.account_activity("Account Activity", "0,1,2,3"))
 

@@ -1,12 +1,14 @@
 from Modules import universal as u
 from Modules import streamer
+from Modules import secretkeys
 import traceback
 
 
 class debugger:
     def __init__(self):
         #smaller number is less verbose logs and error codes
-        self.debugLevel = 2
+        #move to env file in the future
+        self.debugLevel = int(secretkeys.get_debug_level())
 
 
 #this is a file for enabling debugger level logging for trades tracker
@@ -54,6 +56,8 @@ class debugger:
 
     def log_error(self, error_message):
         """Logs an error message to errors.txt with a timestamp."""
+        if self.debugLevel < 1:
+            return
         try:
             print(f"[{u.get_time()}]\n{error_message}\n")
             # Open the file in append mode to log errors without overwriting
