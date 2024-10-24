@@ -108,6 +108,9 @@ class Trade:
             # format data into a message
             msgJSON = self.format_message()
 
+            self.isPlaced = True
+            self.combine_completed_trades()
+
             # if first and second executions exist, calculate gains/loss
             if self.firstExecutionPrice is not None and self.secondExecutionPrice is not None:
                 # calculate gains/loss
@@ -115,7 +118,7 @@ class Trade:
                 # append gain/loss to message
                 # find solution to fix to 2 decimal points
                 msgJSON['message'] += f" ({gainLoss}%)"
-
+            
             #send the data via webhook
             webhook.webhookout(msgJSON)
             
@@ -143,14 +146,14 @@ class Trade:
     def calculateGainsLoss(self):
         date, strike, callOrPut = split_short_description(self.shortDescriptionText)
         gainLoss = float(self.secondExecutionPrice) / float(self.firstExecutionPrice)
-        gainLossPercentage = (gainLoss - 1) * 100
+        gainLossPercentage = round((gainLoss - 1) * 100, 2)
         if callOrPut == "Put":
             gainLossPercentage = gainLossPercentage * -1
         return gainLossPercentage
     
 
     def check_if_placed(self):
-        if self.orderStatus == "OrderAccepted":
+        if self.orderStatus == "OrderAccepted" or self.orderStatus == "ExecutionRequestCreated":
             self.isPlaced = True
         else:
             self.isPlaced = False
@@ -164,17 +167,7 @@ class Trade:
         if firstTrade is None:  
             return None
 
-        # check if both trades have the same underlying symbol
-        if self.underLyingSymbol != firstTrade.underLyingSymbol:
-            return None
-
-        # check if both trades have the same short description
-        if self.shortDescriptionText != firstTrade.shortDescriptionText:
-            return None
-        if firstTrade.executionPrice is None:
-            return None
-        if self.executionPrice is None:
-            return None
+        
         # set the first execution price to first trade
         self.firstExecutionPrice = firstTrade.executionPrice
         # set the second execution price to second  trade
@@ -230,7 +223,10 @@ def load_trade_by_short_description(short_description, file_name="trade_data.jso
                 if trade.get("shortDescriptionText") == short_description:
                     tradeObject = Trade()
                     tradeObject.load_from_json(trade)
-                    return tradeObject  # Return the matching trade
+                    #check if it is has an execution price
+                    print(tradeObject.executionPrice)
+                    if tradeObject.executionPrice is not None:
+                        return tradeObject  # Return the matching trade
 
             # If no match is found
             print(f"No trade found with shortDescriptionText: {short_description}")

@@ -10,7 +10,7 @@ from flask import Flask, request, jsonify
 import requests
 import json
 
-
+db = debugger.debugger()
 
 
 #main handler for new data coming in
@@ -20,7 +20,7 @@ def my_handler(data):
     Args:
         data: The incoming data from the streamer.
     """
-    db = debugger.debugger()
+    
     if isinstance(data, dict):
         data_string = json.dumps(data)
     else:
@@ -63,15 +63,10 @@ def my_handler(data):
         trade.check_if_placed()
 
         #check if trade is complete
-        trade.combine_completed_trades()
 
 
 
-        #save the trade
-        try:
-            trade.store_trade()
-        except Exception as e:
-            debugger.handle_exception(e, "Error storing trade")
+
 
 
         #send the trade
@@ -79,13 +74,13 @@ def my_handler(data):
             # Other logic to format and post to server
             trade.send_trade()
         except Exception as e:
-            debugger.handle_exception(e, "Error sending trade")
+            db.handle_exception(e, "Error sending trade")
 
         try:
             # Store the trade
             trade.store_trade()
         except Exception as e:
-            debugger.handle_exception(e, "Error storing trade")
+            db.handle_exception(e, "Error storing trade")
 
     return
 
@@ -118,13 +113,17 @@ def combine_trades(trade, LoadedTrade):
 
 # Tracking of account data 
 def start_account_tracking(client):
-    if client is None:
-        universal.error_code("Error Client is a None Type")
-    else:
-        #look into turning tracker off during market close
-        streamer.start(my_handler)
-        client.stream.send(client.stream.account_activity("Account Activity", "0,1,2,3"))
-
+    try:
+        if client is None:
+            universal.error_code("Error Client is a None Type")
+        else:
+            #look into turning tracker off during market close
+            streamer.start(my_handler)
+            client.stream.send(client.stream.account_activity("Account Activity", "0,1,2,3"))
+            return False
+    except Exception as e:
+        db.handle_exception(e, "Error in account tracking!!!!!!!!!!")
+        return True
     
 
 def contains_acct_activity(message):

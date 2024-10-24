@@ -21,13 +21,12 @@ def main():
     
     streamer.set_streamer(client)
     # #streaming of real time account data with 
-    streamer_thread = threading.Thread(target=streamer.start_account_tracking, args=(client,))
-    streamer_thread.daemon = True
-    streamer_thread.start()
+    isCrit_error = streamer.start_account_tracking(client)
 
     # Keep the main program alive indefinitely
-    while True:
+    while isCrit_error != True:
         #prevent this code from running too often to slow cpu usage
+        print("running")
         time.sleep(600)
         pass
 
