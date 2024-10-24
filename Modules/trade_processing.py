@@ -136,8 +136,6 @@ class Trade:
             setattr(self, key, trade[key])
 
 
-
-
     def calculateExecution(self):
         dividor = 10 ** math.floor(int(self.executionSignScale) / 2)
         return (float(self.executionPrice) / dividor)
@@ -147,8 +145,6 @@ class Trade:
         date, strike, callOrPut = split_short_description(self.shortDescriptionText)
         gainLoss = float(self.secondExecutionPrice) / float(self.firstExecutionPrice)
         gainLossPercentage = round((gainLoss - 1) * 100, 2)
-        if callOrPut == "Put":
-            gainLossPercentage = gainLossPercentage * -1
         return gainLossPercentage
     
 
