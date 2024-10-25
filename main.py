@@ -23,8 +23,8 @@ def main():
     # #streaming of real time account data with 
     isCrit_error = streamer.start_account_tracking(client)
 
-    # Keep the main program alive indefinitely
-    time.sleep(5)
+    #maintian main tread til streamer takes over
+    time.sleep(10)
 
 
 main()
