@@ -24,11 +24,7 @@ def main():
     isCrit_error = streamer.start_account_tracking(client)
 
     # Keep the main program alive indefinitely
-    while isCrit_error != True:
-        #prevent this code from running too often to slow cpu usage
-        print("running")
-        time.sleep(60)
-        pass
+    time.sleep(5)
 
 
 main()

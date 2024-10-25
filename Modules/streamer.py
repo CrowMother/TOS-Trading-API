@@ -121,7 +121,7 @@ def start_account_tracking(client):
             universal.error_code("Error Client is a None Type")
         else:
             #look into turning tracker off during market close
-            streamer.start(my_handler)
+            streamer.start(my_handler, daemon=False)
             client.stream.send(client.stream.account_activity("Account Activity", "0,1,2,3"))
             return False
     except Exception as e:
