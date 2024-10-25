@@ -27,7 +27,7 @@ def main():
     while isCrit_error != True:
         #prevent this code from running too often to slow cpu usage
         print("running")
-        time.sleep(600)
+        time.sleep(60)
         pass
 
 

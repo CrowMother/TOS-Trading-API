@@ -126,7 +126,10 @@ class Trade:
             # Do nothing if any field is missing
             print("Some required fields are missing, trade not sent.")        
     
-
+    def show_same_data(self, trade):
+        for key in dir(self):
+            if getattr(self, key) == getattr(trade, key):
+                print(f"{key}: {getattr(self, key)} == {getattr(trade, key)}")
        
     def load_from_json(self, trade):
         """

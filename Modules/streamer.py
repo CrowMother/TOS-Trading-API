@@ -54,8 +54,11 @@ def my_handler(data):
             LoadedTradeData = trade_processing.load_trade_by_SchwabOrderID(tradeID)
             if LoadedTradeData is not None:
                 LoadedTrade = trade_processing.Trade()
+                
                 LoadedTrade.load_from_json(LoadedTradeData)
 
+                LoadedTrade.show_same_data(trade)
+                
                 #combine trade and loaded trade objects
                 trade = combine_trades(trade, LoadedTrade)
 
