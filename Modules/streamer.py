@@ -18,74 +18,57 @@ def my_handler(data):
     """Handle incoming data from the streamer.
 
     Args:
-        data: The incoming data from the streamer.
+        data (dict or str): The incoming data from the streamer.
     """
-    
-    if isinstance(data, dict):
-        data_string = json.dumps(data)
-    else:
-        data_string = str(data)
-    
-    db.log_trade(data_string)
-    
-    # Sort out heartbeats and login responses
-    isValidTrade = contains_acct_activity(data)
-    if isValidTrade:
+    try:
+        data_string = json.dumps(data) if isinstance(data, dict) else str(data)
         
-        LoadedTradeData = None
+        db.log_trade(data_string)
+
+        # Sort out heartbeats and login responses
+        if not contains_acct_activity(data):
+            return
 
         # Parse the incoming data
-        dataDict = JsonParser.custom_json_parser(data_string)
+        data_dict = JsonParser.custom_json_parser(data_string)
 
-        #create trade object
+        # Create trade object
         trade = trade_processing.Trade()
-        trade.load_trade(dataDict)
+        trade.load_trade(data_dict)
 
-        #fill in first and second execution prices if executionPrice exists
-
-
-        print(trade.SchwabOrderID)
-
-        #load trades from json with matching SchwabOrderID if exists in trade_data.json
-        #if not found, create new trade
+        # Load trades from json with matching SchwabOrderID if exists in trade_data.json
+        # If not found, create new trade
         if trade.SchwabOrderID is not None:
-            tradeID = (trade.SchwabOrderID)
-            #check if trade exists in trade_data.json
-            LoadedTradeData = trade_processing.load_trade_by_SchwabOrderID(tradeID)
-            if LoadedTradeData is not None:
-                LoadedTrade = trade_processing.Trade()
-                
-                LoadedTrade.load_from_json(LoadedTradeData)
+            trade_id = trade.SchwabOrderID
+            loaded_trade_data = trade_processing.load_trade_by_SchwabOrderID(trade_id)
+            if loaded_trade_data is not None:
+                loaded_trade = trade_processing.Trade()
+                loaded_trade.load_from_json(loaded_trade_data)
 
-                LoadedTrade.show_same_data(trade)
-                
-                #combine trade and loaded trade objects
-                trade = combine_trades(trade, LoadedTrade)
+                # Combine trade and loaded trade objects
+                #trade = combine_trades(trade, loaded_trade)
 
-        #check if trade is placed
+        # Check if trade is placed
         trade.check_if_placed()
 
-        #check if trade is complete
+        # Check if trade is complete
 
-
-
-
-
-
-        #send the trade
+        # Send the trade
         try:
             # Other logic to format and post to server
             trade.send_trade()
         except Exception as e:
             db.handle_exception(e, "Error sending trade")
 
+        # Store the trade
         try:
-            # Store the trade
             trade.store_trade()
         except Exception as e:
             db.handle_exception(e, "Error storing trade")
 
-    return
+    except Exception as e:
+        db.handle_exception(e, "Error in my_handler")
+        streamer.stop()
 
 
 
@@ -121,12 +104,14 @@ def start_account_tracking(client):
             universal.error_code("Error Client is a None Type")
         else:
             #look into turning tracker off during market close
+            streamer = client.stream
             streamer.start(my_handler, daemon=False)
-            client.stream.send(client.stream.account_activity("Account Activity", "0,1,2,3"))
-            return False
+            streamer.send(streamer.account_activity("Account Activity", "0,1,2,3"))
+
     except Exception as e:
         db.handle_exception(e, "Error in account tracking!!!!!!!!!!")
-        return True
+        
+        
     
 
 def contains_acct_activity(message):

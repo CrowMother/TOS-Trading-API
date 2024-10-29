@@ -4,12 +4,14 @@ import re
 import math
 from Modules import webhook
 from Modules import debugger
+from Modules import universal
 
 #if some strikes are too high while others look at rounding method
 
 TRADES_DICT = {}
 
 class Trade:
+
     def __init__(self):
         # Declaring instance attributes using self
         self.SchwabOrderID = None           
@@ -19,17 +21,12 @@ class Trade:
         self.executionPrice = None              
         self.executionSignScale = None  
         self.underLyingSymbol = None
-        
-        self.date = None
-        self.orderStatus = None  
+        self.orderStatus = None
 
-        self.isPlaced = False
-        self.isCompleted = False
+        self.DatePlaced = None
+
         self.isMultiLeg = False
-
-
-        self.firstExecutionPrice = None
-        self.secondExecutionPrice = None
+        self.MultiLegStrategy = None
 
     
 
@@ -42,10 +39,11 @@ class Trade:
         self.load_field('buySellCode', dataDict.get('BuySellCode'))
         self.load_field('shortDescriptionText', dataDict.get('ShortDescriptionText'))
         self.load_field('executionPrice', dataDict.get('ExecutionPrice')[1] if dataDict.get('ExecutionPrice') else None)
-        #look for execution sign scale on data set with it
         self.load_field('executionSignScale', dataDict.get('ExecutionPrice-signScale'))
         self.load_field('underLyingSymbol', dataDict.get('UnderlyingSymbol'))
         self.load_field('orderStatus', dataDict.get('2'))
+
+        self.load_field('DatePlaced', universal.get_time())
 
     def load_field(self, field_name, value):
         """
@@ -130,6 +128,7 @@ class Trade:
         for key in dir(self):
             if getattr(self, key) == getattr(trade, key):
                 print(f"{key}: {getattr(self, key)} == {getattr(trade, key)}")
+
        
     def load_from_json(self, trade):
         """
@@ -137,7 +136,6 @@ class Trade:
         """
         for key in trade:
             setattr(self, key, trade[key])
-
 
     def calculateExecution(self):
         dividor = 10 ** math.floor(int(self.executionSignScale) / 2)
@@ -266,3 +264,4 @@ def open_close_position(openClosePositionCode):
         return "Close Position"
     else:
         return openClosePositionCode
+

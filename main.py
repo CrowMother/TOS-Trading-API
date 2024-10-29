@@ -17,7 +17,7 @@ client = schwabdev.Client(secretkeys.get_app_key(), secretkeys.get_secret())  #c
 #start of the main close
 def main():
     #send test data
-    #test_data.send_test_trade_order()
+    test_data.send_test_trade_order()
     
     streamer.set_streamer(client)
     # #streaming of real time account data with 
