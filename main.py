@@ -1,4 +1,4 @@
-import schwabdev #import the package
+import schwabdev  # Import the package
 from Modules import secretkeys
 from Modules import universal
 from datetime import datetime, timedelta
@@ -7,53 +7,48 @@ import json
 import time
 import threading
 
-
 order_status = "FILLED"
 
-
+# Connect to SQLite database
 conn = sqlite3.connect('orders.db')
 c = conn.cursor()
 
-# Sample structure for order tracking table
+# Updated structure for order tracking table to include new fields
 c.execute('''
 CREATE TABLE IF NOT EXISTS orders (
     orderId TEXT PRIMARY KEY,
-    symbol TEXT,
+    underlyingSymbol TEXT,
     orderType TEXT,
     status TEXT,
     enteredTime TEXT,
     filledQuantity REAL,
+    description TEXT,
+    putCall TEXT,
+    instruction TEXT,
+    accountNumber TEXT,
     is_sent BOOLEAN DEFAULT 0
 )
 ''')
 
+print("Welcome to the Schwab API test Suite")
 
-print("welcome to the Schwab API test Suite")
-#links the bot to the client for placing and pulling information
-client = schwabdev.Client(secretkeys.get_app_key(), secretkeys.get_secret())  #create a client
+# Link the bot to the client for placing and pulling information
+client = schwabdev.Client(secretkeys.get_app_key(), secretkeys.get_secret())  # Create a client
 
-#grab the if it it is BTO CTO or other
-
-#start of the main close
 def main():
-
-    #fetch orders from last hour
+    # Fetch orders from the last hour
     response = fetch_orders_from_last_hour(client, order_status)
-    #store the data in a file
-    print(response)
-    #universal.write_to_file(response, f"data_{order_status}.txt")
+    
+    # Store the data in a JSON file
     if response:
         filename = f"data_{order_status}.json"
         with open(filename, 'w') as file:
             json.dump(response, file, indent=4)
         print(f"Stored JSON data for filter '{order_status}' in file '{filename}'")
-        #update the database
+        # Update the database
         update_orders(response)
     else:
         print(f"No data to store for filter '{order_status}'")
-    
-    
-
 
 def update_orders(orders):
     if not orders:
@@ -62,12 +57,17 @@ def update_orders(orders):
     new_orders = []
     closed_orders = []
     for order in orders:
+        # Extracting required fields with defaults if fields are missing
         order_id = order['orderId']
-        symbol = order['orderLegCollection'][0]['instrument']['symbol'] if 'orderLegCollection' in order else None
+        underlying_symbol = order['orderLegCollection'][0]['instrument'].get('underlyingSymbol') if 'orderLegCollection' in order and 'instrument' in order['orderLegCollection'][0] else None
         order_type = order['orderType']
         status = order['status']
         entered_time = order['enteredTime']
         filled_quantity = order['filledQuantity']
+        description = order.get('description', None)
+        put_call = order['orderLegCollection'][0].get('putCall', None) if 'orderLegCollection' in order else None
+        instruction = order['orderLegCollection'][0].get('instruction', None) if 'orderLegCollection' in order else None
+        account_number = order.get('accountNumber', None)
 
         # Check if order already exists in the database
         c.execute('SELECT * FROM orders WHERE orderId = ?', (order_id,))
@@ -86,9 +86,9 @@ def update_orders(orders):
             # Insert new order
             new_orders.append(order)
             c.execute('''
-                INSERT INTO orders (orderId, symbol, orderType, status, enteredTime, filledQuantity)
-                VALUES (?, ?, ?, ?, ?, ?)
-            ''', (order_id, symbol, order_type, status, entered_time, filled_quantity))
+                INSERT INTO orders (orderId, underlyingSymbol, orderType, status, enteredTime, filledQuantity, description, putCall, instruction, accountNumber, is_sent)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+            ''', (order_id, underlying_symbol, order_type, status, entered_time, filled_quantity, description, put_call, instruction, account_number))
     
     # Commit changes to database
     conn.commit()
@@ -99,28 +99,25 @@ def update_orders(orders):
 def send_orders(new_orders, closed_orders):
     # Replace with actual send logic
     print("Sending new orders:", new_orders)
-    print("Sending closed orders:", closed_orders)    
-
-
+    print("Sending closed orders:", closed_orders)
 
 def fetch_orders_from_last_hour(client, filter=None):
-    # Get the current date and one week prior
+    # Get the current date and one hour prior
     to_date = datetime.now()
-    from_date = to_date - timedelta(hours=1)
-    
+    from_date = to_date - timedelta(minutes=60)
     
     # Format dates as ISO 8601 strings with milliseconds and timezone
     from_date_str = from_date.strftime('%Y-%m-%dT%H:%M:%S.000Z')
     to_date_str = to_date.strftime('%Y-%m-%dT%H:%M:%S.000Z')
     
-    
     # Fetch orders within the specified date range for all linked accounts
     response = client.account_orders_all( 
         from_date_str,
         to_date_str,
-        None,# Optional: set to limit number of result
-        filter    # Optional: filter by status
+        None,  # Optional: set to limit number of results
+        filter   # Filter by status
     )
+    
     if response.status_code == 200:
         # Parse the JSON content
         orders = response.json()
@@ -128,5 +125,5 @@ def fetch_orders_from_last_hour(client, filter=None):
     
     return response
 
-
+# Run the main function
 main()
