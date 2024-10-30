@@ -184,3 +184,8 @@ new_env/pyvenv.cfg
 errors.txt
 trades.txt
 trade_data.json
+data_CANCELED.json
+data_FILLED.json
+data_REPLACED.json
+data_unfiltered.txt
+orders.db

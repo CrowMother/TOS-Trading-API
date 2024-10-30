@@ -8,9 +8,7 @@ import time
 import threading
 
 
-order_statuses = [
-    "CANCELED", "REPLACED", "FILLED"
-]
+order_status = "FILLED"
 
 
 conn = sqlite3.connect('orders.db')
@@ -39,28 +37,33 @@ client = schwabdev.Client(secretkeys.get_app_key(), secretkeys.get_secret())  #c
 #start of the main close
 def main():
 
-
-    for filter in order_statuses:
-        response = fetch_orders_from_last_hour(client, filter)
-        #store the data in a file
-        print(response)
-        universal.write_to_file(response, f"data_{filter}.txt")
-        if response:
-            filename = f"data_{filter}.json"
-            with open(filename, 'w') as file:
-                json.dump(response, file, indent=4)
-            print(f"Stored JSON data for filter '{filter}' in file '{filename}'")
-        else:
-            print(f"No data to store for filter '{filter}'")
+    #fetch orders from last hour
+    response = fetch_orders_from_last_hour(client, order_status)
+    #store the data in a file
+    print(response)
+    #universal.write_to_file(response, f"data_{order_status}.txt")
+    if response:
+        filename = f"data_{order_status}.json"
+        with open(filename, 'w') as file:
+            json.dump(response, file, indent=4)
+        print(f"Stored JSON data for filter '{order_status}' in file '{filename}'")
+        #update the database
+        update_orders(response)
+    else:
+        print(f"No data to store for filter '{order_status}'")
+    
     
 
 
 def update_orders(orders):
+    if not orders:
+        return
+
     new_orders = []
     closed_orders = []
     for order in orders:
         order_id = order['orderId']
-        symbol = order['symbol']
+        symbol = order['orderLegCollection'][0]['instrument']['symbol'] if 'orderLegCollection' in order else None
         order_type = order['orderType']
         status = order['status']
         entered_time = order['enteredTime']
@@ -71,10 +74,14 @@ def update_orders(orders):
         existing_order = c.fetchone()
 
         if existing_order:
-            # Check for closed orders
+            # Update the existing order if status changes to closed
             if existing_order[3] != 'CLOSED' and status == 'CLOSED':
                 closed_orders.append(order)
-                # Perform calculations here if needed
+                c.execute('''
+                    UPDATE orders 
+                    SET status = ?, filledQuantity = ?, is_sent = 0
+                    WHERE orderId = ?
+                ''', (status, filled_quantity, order_id))
         else:
             # Insert new order
             new_orders.append(order)
@@ -83,7 +90,7 @@ def update_orders(orders):
                 VALUES (?, ?, ?, ?, ?, ?)
             ''', (order_id, symbol, order_type, status, entered_time, filled_quantity))
     
-    # Commit to database
+    # Commit changes to database
     conn.commit()
 
     # Send new and closed orders to another server here
