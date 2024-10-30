@@ -40,3 +40,7 @@ def split_string_at_char(inputString, splitChar, SectionNum):
         error_code(f"Value unable to be split and or returned:{str(inputString)}. Error : {str(e)}")
 
 
+#write to file
+def write_to_file(data, fileName="data.txt"):
+    with open(fileName, 'w') as f:
+        f.write(str(data))
