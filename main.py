@@ -104,7 +104,7 @@ def send_orders(new_orders, closed_orders):
 def fetch_orders_from_last_hour(client, filter=None):
     # Get the current date and one hour prior
     to_date = datetime.now()
-    from_date = to_date - timedelta(minutes=60)
+    from_date = to_date - timedelta(days=3)
     
     # Format dates as ISO 8601 strings with milliseconds and timezone
     from_date_str = from_date.strftime('%Y-%m-%dT%H:%M:%S.000Z')
