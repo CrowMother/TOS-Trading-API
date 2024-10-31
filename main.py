@@ -64,21 +64,15 @@ def main():
             
             # Store the data in a JSON file
             if response:
-                #can get rid of this after debugging
-                filename = f"data_{order_status}.json"
-                with open(filename, 'w') as file:
-                    json.dump(response, file, indent=4)
-                print(f"Stored JSON data for filter '{order_status}' in file '{filename}'")
-                # Update the database
+                #if the response is not empty then update the orders
                 update_orders(response)
 
                 # send orders that are in the database
                 send_orders()
 
-
                 time.sleep(5)
-            else:
-                print(f"No data to store for filter '{order_status}'")
+            #else:
+                #print(f"No data to store for filter '{order_status}'")
         except Exception as e:
             print(f"Error(rebooting...): {e}")
         time.sleep(5)
@@ -288,7 +282,7 @@ def move_order_to_archive(order_id):
 def fetch_orders_from_last_hour(client, filter=None):
     # Get the current date and one hour prior
     to_date = datetime.now(timezone.utc)
-    from_date = to_date - timedelta(hours=3)
+    from_date = to_date - timedelta(minutes=5)
     
     # Format dates as ISO 8601 strings with milliseconds and timezone
     from_date_str = from_date.strftime('%Y-%m-%dT%H:%M:%S.000Z')
