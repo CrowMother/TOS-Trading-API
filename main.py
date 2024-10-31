@@ -1,7 +1,10 @@
 import schwabdev  # Import the package
 from Modules import secretkeys
 from Modules import universal
+from Modules import webhook
 from datetime import datetime, timedelta, timezone
+
+import re
 import sqlite3
 import json
 import time
@@ -12,6 +15,24 @@ order_status = "FILLED"
 # Connect to SQLite database
 conn = sqlite3.connect('orders.db')
 c = conn.cursor()
+
+
+# Create orders table if it doesn't exist
+c.execute('''
+CREATE TABLE IF NOT EXISTS archive (
+    orderId TEXT PRIMARY KEY,
+    underlyingSymbol TEXT,
+    orderType TEXT,
+    status TEXT,
+    enteredTime TEXT,
+    filledQuantity REAL,
+    description TEXT,
+    price REAL,
+    putCall TEXT,
+    instruction TEXT,
+    accountNumber TEXT
+)
+''')
 
 # Updated structure for order tracking table to include new fields
 c.execute('''
@@ -26,8 +47,7 @@ CREATE TABLE IF NOT EXISTS orders (
     price REAL,
     putCall TEXT,
     instruction TEXT,
-    accountNumber TEXT,
-    is_sent BOOLEAN DEFAULT 0
+    accountNumber TEXT
 )
 ''')
 
@@ -37,19 +57,32 @@ print("Welcome to the Schwab API test Suite")
 client = schwabdev.Client(secretkeys.get_app_key(), secretkeys.get_secret())  # Create a client
 
 def main():
-    # Fetch orders from the last hour
-    response = fetch_orders_from_last_hour(client, order_status)
-    
-    # Store the data in a JSON file
-    if response:
-        filename = f"data_{order_status}.json"
-        with open(filename, 'w') as file:
-            json.dump(response, file, indent=4)
-        print(f"Stored JSON data for filter '{order_status}' in file '{filename}'")
-        # Update the database
-        update_orders(response)
-    else:
-        print(f"No data to store for filter '{order_status}'")
+    while True:
+        try:
+            # Fetch orders from the last hour
+            response = fetch_orders_from_last_hour(client, order_status)
+            
+            # Store the data in a JSON file
+            if response:
+                #can get rid of this after debugging
+                filename = f"data_{order_status}.json"
+                with open(filename, 'w') as file:
+                    json.dump(response, file, indent=4)
+                print(f"Stored JSON data for filter '{order_status}' in file '{filename}'")
+                # Update the database
+                update_orders(response)
+
+                # send orders that are in the database
+                send_orders()
+
+
+                time.sleep(5)
+            else:
+                print(f"No data to store for filter '{order_status}'")
+        except Exception as e:
+            print(f"Error(rebooting...): {e}")
+        time.sleep(5)
+
 
 def update_orders(orders):
     if not orders:
@@ -60,6 +93,13 @@ def update_orders(orders):
     for order in orders:
         # Extracting required fields with defaults if fields are missing
         order_id = order['orderId']
+        #check if orderID is in the archive table
+        c.execute('SELECT 1 FROM archive WHERE orderId = ?', (order_id,))
+        if c.fetchone():
+            print(f"Order {order_id} already exists in archive. Skipping insert into orders.")
+            continue  # Skip to the next order if it exists in archived_orders
+
+        # Extracting required fields
         underlying_symbol = order['orderLegCollection'][0]['instrument'].get('underlyingSymbol') if 'orderLegCollection' in order and 'instrument' in order['orderLegCollection'][0] else None
         order_type = order['orderType']
         status = order['status']
@@ -67,7 +107,7 @@ def update_orders(orders):
         filled_quantity = order['filledQuantity']
         description = order['orderLegCollection'][0]['instrument'].get('description') if 'orderLegCollection' in order and 'instrument' in order['orderLegCollection'][0] else None
         price = order.get('price', None)
-        put_call = order['orderLegCollection'][0]['instrument'].get('putcall') if 'orderLegCollection' in order and 'instrument' in order['orderLegCollection'][0] else None
+        put_call = order['orderLegCollection'][0]['instrument'].get('putCall') if 'orderLegCollection' in order and 'instrument' in order['orderLegCollection'][0] else None
         instruction = order['orderLegCollection'][0].get('instruction', None) if 'orderLegCollection' in order else None
         account_number = order.get('accountNumber', None)
 
@@ -99,8 +139,7 @@ def update_orders(orders):
         price,
         putCall,
         instruction,
-        accountNumber,
-        is_sent
+        accountNumber
     )
     VALUES (
         ?,
@@ -113,8 +152,7 @@ def update_orders(orders):
         ?,
         ?,
         ?,
-        ?,
-        0
+        ?
     )
 ''', (
     order_id,
@@ -133,18 +171,124 @@ def update_orders(orders):
     # Commit changes to database
     conn.commit()
 
-    # Send new and closed orders to another server here
-    send_orders(new_orders, closed_orders)
+def send_orders( ):
+    # pull order from database
+    c.execute('SELECT * FROM orders')
+    orders = c.fetchall()
 
-def send_orders(new_orders, closed_orders):
-    # Replace with actual send logic
-    print("Sending new orders:", new_orders)
-    print("Sending closed orders:", closed_orders)
+    for order in orders:
+        order_id = order[0]
+        underlying_symbol = order[1]
+        order_type = order[2]
+        status = order[3]
+        entered_time = order[4]
+        filled_quantity = order[5]
+        description = order[6]
+        price = order[7]
+        put_call = order[8]
+        instruction = order[9]
+        account_number = order[10]
+
+        #format message
+        date, strike = format_description(description)
+
+        #check for closing data (gain loss)
+        gain_loss_percentage = gain_loss(description, price, instruction)
+
+
+        #format data into json
+        data = {
+            "order_id": order_id,
+            "underlying_symbol": underlying_symbol,
+            "order_type": order_type,
+            "status": status,
+            "entered_time": entered_time,
+            "filled_quantity": filled_quantity,
+            "date": date,
+            "strike": strike,
+            "price": price,
+            "put_call": put_call,
+            "instruction": instruction,
+            "account_number": account_number,
+            "gain_loss_percentage": gain_loss_percentage
+        }
+
+        
+
+        #send webhook
+        webhook.webhookout(data)
+
+        #move order to sent
+        move_order_to_archive(order_id)
+
+
+def gain_loss(description, price, instruction):
+    c.execute('SELECT * FROM archive WHERE description = ?', (description,))
+    matched = c.fetchone()
+
+    gain_loss_percentage = 0
+    if matched and (instruction == 'SELL_TO_CLOSE' or instruction == 'BUY_TO_CLOSE'):
+        #calculate gain/loss
+
+        #change to positionEffect in the future
+        gain_loss_percentage = ( price/ matched[7]) * 100
+        return gain_loss_percentage
+    else:
+        return 0
+
+#format description
+def format_description(description):
+    match = re.search(r'(\d{2}/\d{2}/\d{4})\s+\$(\d+)', description)
+
+    if match:
+        date = match.group(1)  # Extracted date
+        price = match.group(2)  # Extracted price
+        return date, price
+    else:
+        return "", ""
+
+def move_order_to_archive(order_id):
+    # Insert the entry into sent
+    c.execute('''
+        INSERT INTO archive (
+            orderId,
+            underlyingSymbol,
+            orderType,
+            status,
+            enteredTime,
+            filledQuantity,
+            description,
+            price,
+            putCall,
+            instruction,
+            accountNumber
+        )
+        SELECT
+            orderId,
+            underlyingSymbol,
+            orderType,
+            status,
+            enteredTime,
+            filledQuantity,
+            description,
+            price,
+            putCall,
+            instruction,
+            accountNumber
+        FROM orders
+        WHERE orderId = ?
+    ''', (order_id,))
+
+    # Delete the entry from the orders table
+    c.execute('DELETE FROM orders WHERE orderId = ?', (order_id,))
+
+    # Commit the transaction
+    conn.commit()
 
 def fetch_orders_from_last_hour(client, filter=None):
     # Get the current date and one hour prior
     to_date = datetime.now(timezone.utc)
-    from_date = to_date - timedelta(hours=1)
+    from_date = to_date - timedelta(hours=3)
     
     # Format dates as ISO 8601 strings with milliseconds and timezone
     from_date_str = from_date.strftime('%Y-%m-%dT%H:%M:%S.000Z')
