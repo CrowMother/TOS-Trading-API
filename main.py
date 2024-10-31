@@ -1,7 +1,7 @@
 import schwabdev  # Import the package
 from Modules import secretkeys
 from Modules import universal
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import sqlite3
 import json
 import time
@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS orders (
     enteredTime TEXT,
     filledQuantity REAL,
     description TEXT,
+    price REAL,
     putCall TEXT,
     instruction TEXT,
     accountNumber TEXT,
@@ -64,8 +65,9 @@ def update_orders(orders):
         status = order['status']
         entered_time = order['enteredTime']
         filled_quantity = order['filledQuantity']
-        description = order.get('description', None)
-        put_call = order['orderLegCollection'][0].get('putCall', None) if 'orderLegCollection' in order else None
+        description = order['orderLegCollection'][0]['instrument'].get('description') if 'orderLegCollection' in order and 'instrument' in order['orderLegCollection'][0] else None
+        price = order.get('price', None)
+        put_call = order['orderLegCollection'][0]['instrument'].get('putcall') if 'orderLegCollection' in order and 'instrument' in order['orderLegCollection'][0] else None
         instruction = order['orderLegCollection'][0].get('instruction', None) if 'orderLegCollection' in order else None
         account_number = order.get('accountNumber', None)
 
@@ -86,9 +88,47 @@ def update_orders(orders):
             # Insert new order
             new_orders.append(order)
             c.execute('''
-                INSERT INTO orders (orderId, underlyingSymbol, orderType, status, enteredTime, filledQuantity, description, putCall, instruction, accountNumber, is_sent)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
-            ''', (order_id, underlying_symbol, order_type, status, entered_time, filled_quantity, description, put_call, instruction, account_number))
+    INSERT INTO orders (
+        orderId,
+        underlyingSymbol,
+        orderType,
+        status,
+        enteredTime,
+        filledQuantity,
+        description,
+        price,
+        putCall,
+        instruction,
+        accountNumber,
+        is_sent
+    )
+    VALUES (
+        ?,
+        ?,
+        ?,
+        ?,
+        ?,
+        ?,
+        ?,
+        ?,
+        ?,
+        ?,
+        ?,
+        0
+    )
+''', (
+    order_id,
+    underlying_symbol,
+    order_type,
+    status,
+    entered_time,
+    filled_quantity,
+    description,
+    price,
+    put_call,
+    instruction,
+    account_number
+))
     
     # Commit changes to database
     conn.commit()
@@ -103,8 +143,8 @@ def send_orders(new_orders, closed_orders):
 
 def fetch_orders_from_last_hour(client, filter=None):
     # Get the current date and one hour prior
-    to_date = datetime.now()
-    from_date = to_date - timedelta(days=3)
+    to_date = datetime.now(timezone.utc)
+    from_date = to_date - timedelta(hours=1)
     
     # Format dates as ISO 8601 strings with milliseconds and timezone
     from_date_str = from_date.strftime('%Y-%m-%dT%H:%M:%S.000Z')
@@ -114,8 +154,8 @@ def fetch_orders_from_last_hour(client, filter=None):
     response = client.account_orders_all( 
         from_date_str,
         to_date_str,
-        None,  # Optional: set to limit number of results
-        filter   # Filter by status
+        None,  # Optional: set to limit number of results    
+        filter # Optional: Filter by status
     )
     
     if response.status_code == 200:
