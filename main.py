@@ -217,18 +217,27 @@ def send_orders( ):
 
 
 def gain_loss(description, price, instruction):
-    c.execute('SELECT * FROM archive WHERE description = ?', (description,))
+    c.execute('''
+        SELECT *
+        FROM archive
+        WHERE description = ?
+        AND instruction IN ('BUY_TO_OPEN', 'SELL_TO_OPEN')
+        ORDER BY enteredTime DESC
+        LIMIT 1
+    ''', (description,))
     matched = c.fetchone()
 
     gain_loss_percentage = 0
     if matched and (instruction == 'SELL_TO_CLOSE' or instruction == 'BUY_TO_CLOSE'):
-        #calculate gain/loss
-
-        #change to positionEffect in the future
-        gain_loss_percentage = ( price/ matched[7]) * 100
+        #calculate if gain or loss
+        Original_price = matched[7]
+        if Original_price > price:
+            gain_loss_percentage = round((Original_price - price) / Original_price * 100, 2)
+        else:
+            gain_loss_percentage = round((price - Original_price) / Original_price * 100, 2)
         return gain_loss_percentage
     else:
-        return 0
+        return None
 
 #format description
 def format_description(description):
