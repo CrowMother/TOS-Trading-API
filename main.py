@@ -233,6 +233,7 @@ def gain_loss(description, price, instruction):
         Original_price = matched[7]
         if Original_price > price:
             gain_loss_percentage = round((Original_price - price) / Original_price * 100, 2)
+            gain_loss_percentage = -1 * gain_loss_percentage
         else:
             gain_loss_percentage = round((price - Original_price) / Original_price * 100, 2)
         return gain_loss_percentage
