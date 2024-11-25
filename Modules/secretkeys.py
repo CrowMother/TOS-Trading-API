@@ -54,11 +54,11 @@ def check_set(key, type):
 
         else:
             if(type == 'a'):
-                universal.okay_code("APP_KEY set: " + key)
+                universal.okay_code("APP_KEY set")
             elif(type == 'u'):
-                universal.okay_code(f"SERVER_URL set: {key}")
+                universal.okay_code(f"SERVER_URL set")
             else:
-                universal.okay_code("SECRET set: " + key)
+                universal.okay_code("SECRET set")
     except:
         universal.error_code("APP KEY and or SECRET not found in .env")
 

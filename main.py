@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS archive (
     price REAL,
     putCall TEXT,
     instruction TEXT,
+    quantity REAL,
     accountNumber TEXT
 )
 ''')
@@ -47,6 +48,7 @@ CREATE TABLE IF NOT EXISTS orders (
     price REAL,
     putCall TEXT,
     instruction TEXT,
+    quantity REAL,
     accountNumber TEXT
 )
 ''')
@@ -70,11 +72,11 @@ def main():
                 # send orders that are in the database
                 send_orders()
 
-                time.sleep(5)
             #else:
                 #print(f"No data to store for filter '{order_status}'")
         except Exception as e:
             print(f"Error(rebooting...): {e}")
+            break
         time.sleep(5)
 
 
@@ -104,6 +106,7 @@ def update_orders(orders):
         put_call = order['orderLegCollection'][0]['instrument'].get('putCall') if 'orderLegCollection' in order and 'instrument' in order['orderLegCollection'][0] else None
         instruction = order['orderLegCollection'][0].get('instruction', None) if 'orderLegCollection' in order else None
         account_number = order.get('accountNumber', None)
+        quantity = order.get('quantity', None)
 
         # Check if order already exists in the database
         c.execute('SELECT * FROM orders WHERE orderId = ?', (order_id,))
@@ -133,9 +136,11 @@ def update_orders(orders):
         price,
         putCall,
         instruction,
+        quantity,
         accountNumber
     )
     VALUES (
+        ?,
         ?,
         ?,
         ?,
@@ -159,6 +164,7 @@ def update_orders(orders):
     price,
     put_call,
     instruction,
+    quantity,
     account_number
 ))
     
@@ -169,60 +175,100 @@ def send_orders( ):
     # pull order from database
     c.execute('SELECT * FROM orders')
     orders = c.fetchall()
+    try:
+        for order in orders:
+            order_id, underlying_symbol, order_type, status, entered_time, filled_quantity, description, price, put_call, instruction, quantity, account_number = load_data_from_db(order)
 
-    for order in orders:
-        order_id = order[0]
-        underlying_symbol = order[1]
-        order_type = order[2]
-        status = order[3]
-        entered_time = order[4]
-        filled_quantity = order[5]
-        description = order[6]
-        price = order[7]
-        put_call = order[8]
-        instruction = order[9]
-        account_number = order[10]
+            #format message
+            if description is None:
+                continue
+            date, strike = format_description(description)
 
-        #format message
-        date, strike = format_description(description)
+            #check for closing data (gain loss)
+            gain_loss_percentage = gain_loss(description, price, instruction)
 
-        #check for closing data (gain loss)
-        gain_loss_percentage = gain_loss(description, price, instruction)
+            #create generic function to check if closing position
+            quantity_string = ""
+            quantity_string = check_if_partial_close(instruction, quantity, description)
+                        
+            #format data into json
+            data = format_data(order_id, underlying_symbol, order_type, status, entered_time, filled_quantity, date, strike, price, put_call, instruction, account_number, gain_loss_percentage, quantity_string)
+
+            
+
+            #send webhook
+            returnValue = webhook.webhookout(data)
+
+            #move order to sent
+            if returnValue == "OK":
+                move_order_to_archive(order_id)
+
+    except Exception as e:
+        print(f"Error: {e}")
 
 
-        #format data into json
-        data = {
-            "order_id": order_id,
-            "underlying_symbol": underlying_symbol,
-            "order_type": order_type,
-            "status": status,
-            "entered_time": entered_time,
-            "filled_quantity": filled_quantity,
-            "date": date,
-            "strike": strike,
-            "price": price,
-            "put_call": put_call,
-            "instruction": instruction,
-            "account_number": account_number,
-            "gain_loss_percentage": gain_loss_percentage
+def load_data_from_db(order):
+    order_id = order[0]
+    underlying_symbol = order[1]
+    order_type = order[2]
+    status = order[3]
+    entered_time = order[4]
+    filled_quantity = order[5]
+    description = order[6]
+    price = order[7]
+    put_call = order[8]
+    instruction = order[9]
+    quantity = order[10]
+    account_number = order[11]
+    return order_id, underlying_symbol, order_type, status, entered_time, filled_quantity, description, price, put_call, instruction, quantity, account_number
+
+def check_if_partial_close(instruction, quantity, description):
+    if instruction == "BUY_TO_CLOSE" or instruction == "SELL_TO_CLOSE":
+                print(quantity)
+                #if the quantity is greater than the original quantity
+                c.execute('''
+                    SELECT *
+                    FROM archive
+                    WHERE description = ?
+                    AND instruction IN ('BUY_TO_OPEN', 'SELL_TO_OPEN')
+                    ORDER BY enteredTime ASC
+                ''', (description,))
+                matched = c.fetchone()
+                if matched:
+                    original_quantity = matched[10]
+                    if quantity < original_quantity:
+                        return "Partial Close"
+                    else:
+                        return "Full Close"
+
+
+def format_data(order_id, underlying_symbol, order_type, status, entered_time, filled_quantity, date, strike, price, put_call, instruction, account_number, gain_loss_percentage, quantity_string):
+    data = {
+        "order_id": order_id,
+        "underlying_symbol": underlying_symbol,
+        "order_type": order_type,
+        "status": status,
+        "entered_time": entered_time,
+        "filled_quantity": filled_quantity,
+        "date": date,
+        "strike": strike,
+        "price": price,
+        "put_call": put_call,
+        "instruction": instruction,
+        "account_number": account_number,
+        "gain_loss_percentage": gain_loss_percentage,
+        "quantity_string": quantity_string
         }
-
-        
-
-        #send webhook
-        webhook.webhookout(data)
-
-        #move order to sent
-        move_order_to_archive(order_id)
-
+    return data
 
 def gain_loss(description, price, instruction):
+    #modify the order to be ascending to get the original price
     c.execute('''
         SELECT *
         FROM archive
         WHERE description = ?
         AND instruction IN ('BUY_TO_OPEN', 'SELL_TO_OPEN')
-        ORDER BY enteredTime DESC
+        ORDER BY enteredTime ASC
         LIMIT 1
     ''', (description,))
     matched = c.fetchone()
@@ -265,6 +311,7 @@ def move_order_to_archive(order_id):
             price,
             putCall,
             instruction,
+            quantity,
             accountNumber
         )
         SELECT
@@ -278,6 +325,7 @@ def move_order_to_archive(order_id):
             price,
             putCall,
             instruction,
+            quantity,
             accountNumber
         FROM orders
         WHERE orderId = ?
@@ -292,7 +340,7 @@ def move_order_to_archive(order_id):
 def fetch_orders_from_last_hour(client, filter=None):
     # Get the current date and one hour prior
     to_date = datetime.now(timezone.utc)
-    from_date = to_date - timedelta(minutes=5)
+    from_date = to_date - timedelta(hours=240)
     
     # Format dates as ISO 8601 strings with milliseconds and timezone
     from_date_str = from_date.strftime('%Y-%m-%dT%H:%M:%S.000Z')

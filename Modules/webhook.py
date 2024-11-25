@@ -18,12 +18,11 @@ def webhookout(data):
             print(f"sending data to: {SERVER_URL}")
             response = requests.post(f"{SERVER_URL}", json=data)
             response.raise_for_status()  # Handle HTTP errors
-            return {'status': 'data sent', 'response': response.json()}
+            return "OK"
         except requests.exceptions.RequestException as e:
             universal.error_code(f"Connection with server lost! {str(e)}")
             #internally log the trade data below
-            
-            return {'status': 'error', 'message': str(e)}
+            return "ERROR"
     
 
 #rewrite to modify to the above style of sending data
