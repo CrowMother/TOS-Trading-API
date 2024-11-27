@@ -340,7 +340,7 @@ def move_order_to_archive(order_id):
 def fetch_orders_from_last_hour(client, filter=None):
     # Get the current date and one hour prior
     to_date = datetime.now(timezone.utc)
-    from_date = to_date - timedelta(hours=240)
+    from_date = to_date - timedelta(hours=1)
     
     # Format dates as ISO 8601 strings with milliseconds and timezone
     from_date_str = from_date.strftime('%Y-%m-%dT%H:%M:%S.000Z')
