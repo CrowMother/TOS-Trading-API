@@ -168,3 +168,4 @@ config/env
 tokens.json
 logfile.txt
 docker_commands.txt
+orders.db
