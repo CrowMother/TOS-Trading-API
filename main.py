@@ -31,7 +31,8 @@ CREATE TABLE IF NOT EXISTS archive (
     putCall TEXT,
     instruction TEXT,
     quantity REAL,
-    accountNumber TEXT
+    accountNumber TEXT,
+    closed BOOLEAN DEFAULT 0
 )
 ''')
 
@@ -185,12 +186,16 @@ def send_orders( ):
             date, strike = format_description(description)
 
             #check for closing data (gain loss)
-            gain_loss_percentage = gain_loss(description, price, instruction)
+            gain_loss_percentage = calculate_gain_loss(description, price, quantity, instruction)
 
             #create generic function to check if closing position
             quantity_string = ""
-            quantity_string = check_if_partial_close(instruction, quantity, description)
-                        
+            quantity_string = check_if_partial_close(instruction, filled_quantity, description)
+
+            if quantity_string != "" or quantity_string != None:
+                quantity_string = f"{quantity_string} "
+
+
             #format data into json
             data = format_data(order_id, underlying_symbol, order_type, status, entered_time, filled_quantity, date, strike, price, put_call, instruction, account_number, gain_loss_percentage, quantity_string)
 
@@ -224,22 +229,26 @@ def load_data_from_db(order):
 
 def check_if_partial_close(instruction, quantity, description):
     if instruction == "BUY_TO_CLOSE" or instruction == "SELL_TO_CLOSE":
-                print(quantity)
-                #if the quantity is greater than the original quantity
-                c.execute('''
-                    SELECT *
-                    FROM archive
-                    WHERE description = ?
-                    AND instruction IN ('BUY_TO_OPEN', 'SELL_TO_OPEN')
-                    ORDER BY enteredTime ASC
-                ''', (description,))
-                matched = c.fetchone()
-                if matched:
-                    original_quantity = matched[10]
-                    if quantity < original_quantity:
-                        return "Partial Close"
-                    else:
-                        return "Full Close"
+        print(quantity)
+        #if the quantity is greater than the original quantity
+        c.execute('''
+            SELECT *
+            FROM archive
+            WHERE description = ?
+            AND instruction IN ('BUY_TO_OPEN', 'SELL_TO_OPEN')
+            ORDER BY enteredTime ASC
+        ''', (description,))
+        matched = c.fetchone()
+        if matched:
+            original_quantity = matched[5]
+            if quantity < original_quantity:
+                return "Partial Close"
+            else:
+                return "Full Close"
+        else:
+            return ""
+    else:
+        return ""
 
 
 def format_data(order_id, underlying_symbol, order_type, status, entered_time, filled_quantity, date, strike, price, put_call, instruction, account_number, gain_loss_percentage, quantity_string):
@@ -261,19 +270,8 @@ def format_data(order_id, underlying_symbol, order_type, status, entered_time, f
         }
     return data
 
-def gain_loss(description, price, instruction):
-    #modify the order to be ascending to get the original price
-    c.execute('''
-        SELECT *
-        FROM archive
-        WHERE description = ?
-        AND instruction IN ('BUY_TO_OPEN', 'SELL_TO_OPEN')
-        ORDER BY enteredTime ASC
-        LIMIT 1
-    ''', (description,))
-    matched = c.fetchone()
+def gain_loss(matched, description, price, instruction):
 
-    gain_loss_percentage = 0
     if matched and (instruction == 'SELL_TO_CLOSE' or instruction == 'BUY_TO_CLOSE'):
         #calculate if gain or loss
         Original_price = matched[7]
@@ -337,10 +335,10 @@ def move_order_to_archive(order_id):
     # Commit the transaction
     conn.commit()
 
-def fetch_orders_from_last_hour(client, filter=None):
+def fetch_orders_from_last_hour(client, filter=None, hours_ago=240):
     # Get the current date and one hour prior
     to_date = datetime.now(timezone.utc)
-    from_date = to_date - timedelta(hours=1)
+    from_date = to_date - timedelta(hours=hours_ago)
     
     # Format dates as ISO 8601 strings with milliseconds and timezone
     from_date_str = from_date.strftime('%Y-%m-%dT%H:%M:%S.000Z')
@@ -360,6 +358,56 @@ def fetch_orders_from_last_hour(client, filter=None):
         return orders
     
     return response
+
+
+
+
+def get_oldest_open_order(description):
+    c.execute('''
+        SELECT *
+        FROM archive
+        WHERE description = ?
+        AND instruction IN ('BUY_TO_OPEN', 'SELL_TO_OPEN')
+        AND closed = 0
+        ORDER BY enteredTime ASC
+        LIMIT 1
+    ''', (description,))
+    #take the fetchone and return the data as a dictionary
+    return c.fetchone()
+
+
+def calculate_gain_loss(description, price, quantity, instruction):
+    #using FIFO to get the oldest open order
+    oldest_order = get_oldest_open_order(description)
+
+    if  not oldest_order:
+        return None
+    
+    #if the quantity stored in the oldest order is greater than the current quantity
+    if oldest_order[10] > quantity:
+        #subtract the quantity from the oldest order then save it back
+        quantity = oldest_order[5] - quantity
+        c.execute('''
+            UPDATE archive
+            SET quantity = ?
+            WHERE orderId = ?   
+        ''', (quantity, oldest_order[0]))
+        conn.commit()
+    else:
+        #if the quantity stored in the oldest order is less than the current quantity
+        quantity = quantity - oldest_order[10]
+        #set issent to true
+        c.execute('''
+            UPDATE archive
+            SET closed = 1
+            WHERE orderId = ?   
+        ''', (oldest_order[0],))
+        conn.commit()
+    
+    #calculate if gain or loss
+    return gain_loss(oldest_order, description, price, instruction)
+
+
 
 # Run the main function
 main()
