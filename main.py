@@ -335,7 +335,7 @@ def move_order_to_archive(order_id):
     # Commit the transaction
     conn.commit()
 
-def fetch_orders_from_last_hour(client, filter=None, hours_ago=240):
+def fetch_orders_from_last_hour(client, filter=None, hours_ago=1):
     # Get the current date and one hour prior
     to_date = datetime.now(timezone.utc)
     from_date = to_date - timedelta(hours=hours_ago)
