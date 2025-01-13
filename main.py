@@ -1,7 +1,4 @@
 import schwabdev  # Import the package
-from Modules import secretkeys
-from Modules import universal
-from Modules import webhook
 from datetime import datetime, timedelta, timezone
 
 import re
@@ -9,6 +6,12 @@ import sqlite3
 import json
 import time
 import threading
+
+from Modules import secretkeys
+from Modules import universal
+from Modules import webhook
+from Modules import data_sort
+from Modules import report_gen
 
 order_status = "FILLED"
 
@@ -63,7 +66,7 @@ def main():
     while True:
         try:
             # Fetch orders from the last hour
-            response = fetch_orders_from_last_hour(client, order_status)
+            response = universal.fetch_orders_from_time_frame(client, order_status)
             
             # Store the data in a JSON file
             if response:
@@ -334,30 +337,6 @@ def move_order_to_archive(order_id):
 
     # Commit the transaction
     conn.commit()
-
-def fetch_orders_from_last_hour(client, filter=None, hours_ago=1):
-    # Get the current date and one hour prior
-    to_date = datetime.now(timezone.utc)
-    from_date = to_date - timedelta(hours=hours_ago)
-    
-    # Format dates as ISO 8601 strings with milliseconds and timezone
-    from_date_str = from_date.strftime('%Y-%m-%dT%H:%M:%S.000Z')
-    to_date_str = to_date.strftime('%Y-%m-%dT%H:%M:%S.000Z')
-    
-    # Fetch orders within the specified date range for all linked accounts
-    response = client.account_orders_all( 
-        from_date_str,
-        to_date_str,
-        None,  # Optional: set to limit number of results    
-        filter # Optional: Filter by status
-    )
-    
-    if response.status_code == 200:
-        # Parse the JSON content
-        orders = response.json()
-        return orders
-    
-    return response
 
 
 

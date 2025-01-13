@@ -1,6 +1,6 @@
 import os
 from dotenv import load_dotenv
-from Modules import universal
+import universal
 
 APP_KEY = ""
 SECRET = ""
