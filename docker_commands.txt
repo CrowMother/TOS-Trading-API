@@ -1,0 +1,2 @@
+docker build -t crowmommy/client-side .
+docker push crowmommy/client-side  
