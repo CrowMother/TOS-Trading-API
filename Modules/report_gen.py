@@ -9,8 +9,16 @@ Functions:
     - store_data_in_google_sheets(formatted_data, sheet_id): Stores the formatted data in the specified Google Sheets document.
 """
 
+import gspread
+from google.oauth2.service_account import Credentials
+import pandas as pd
+
 import universal
 from data_sort import get_all_order_details
+
+
+SCOPES = ['https://www.googleapis.com/auth/spreadsheets',
+          'https://www.googleapis.com/auth/drive']
 
 def generate_report(client):
     """
@@ -30,6 +38,8 @@ def generate_report(client):
     # sort and format the data
     formatted_data = [get_all_order_details(order) for order in data]
     print(formatted_data)
+
+    
 
 
 if __name__ == '__main__':
