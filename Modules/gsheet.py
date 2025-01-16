@@ -136,8 +136,7 @@ if __name__ == '__main__':
     copy_headers(worksheet, 'A18')
     #test insert data
     insert_data(worksheet, 'A5', [['Week', 'Ticker', 'Exp.', 'Contract', 'Entry', 'Max Exit / Stop Price', 'Max Exit / Stop Price Percentage','Win / Loss', 'Notes'], ['1/17/25', 'QQQ1'], ['1/17/25', 'AAPL', '1/19/2025', '1.00C', '1.00', '2.00']])
-
     #test get_next_empty_row
     get_next_empty_row(worksheet, 2)
-    #test get
-    #get_all_records(worksheet)
+
+    

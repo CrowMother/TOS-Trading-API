@@ -9,10 +9,7 @@ Functions:
     - store_data_in_google_sheets(formatted_data, sheet_id): Stores the formatted data in the specified Google Sheets document.
 """
 
-import gspread
-from google.oauth2.service_account import Credentials
-import pandas as pd
-
+import gsheet
 import universal
 from data_sort import get_all_order_details
 
@@ -38,6 +35,9 @@ def generate_report(client):
     # sort and format the data
     formatted_data = [get_all_order_details(order) for order in data]
     print(formatted_data)
+    # store the data in Google Sheets
+    # gsheet.store_data_in_google_sheets(formatted_data)
+    # store the sheet values in the .env file (name of the sheet, sheet id, and local path for the credentials)
 
     
 
