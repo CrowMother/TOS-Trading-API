@@ -39,6 +39,10 @@ def generate_report(SchwabClient, worksheet):
 
     # sort and format the data
     formatted_data = [get_all_order_details(order) for order in data]
+    for order in formatted_data:
+        logging.info(f"Formatted data: {order}")
+        
+
     logging.info(f"Formatted data: {formatted_data}")
 
     # store the data in Google Sheets
