@@ -62,6 +62,18 @@ def check_set(key, type):
     except:
         universal.error_code("APP KEY and or SECRET not found in .env")
 
+def get_a_secret(secret_name):
+    current_directory = os.path.dirname(os.path.abspath(__file__))
+
+    dotenv_path = os.path.join(current_directory, '..', 'config', '.env')
+
+    # Load the .env file
+    load_dotenv(dotenv_path)
+
+    secret = os.getenv(secret_name)
+
+    return secret
+
 def get_debug_level():
     current_directory = os.path.dirname(os.path.abspath(__file__))
 

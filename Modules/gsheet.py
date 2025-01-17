@@ -55,16 +55,15 @@ def get_next_empty_row(worksheet, column):
     try:
         # Fetch all values in the specified column
         values = worksheet.col_values(column)
-        logging.info(f"Values: {values}")
+        logging.info(f"Values in column {column}: {values}")
 
         # Find the index of the first empty cell in the column
-        empty_index = values.index('') + 1
-        logging.info(f"Empty index: {empty_index}")
+        empty_index = len(values) + 1
+        logging.info(f"Next empty row in column {column}: {empty_index}")
         return empty_index
-    except ValueError:
-        logging.error("No empty cell found in the column")
     except Exception as e:
-        logging.error(f"An error occurred: {e}")
+        logging.error(f"An error occurred while getting the next empty row: {e}")
+        return None
 
 def get_all_records(worksheet):
     try:

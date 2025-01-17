@@ -10,14 +10,19 @@ Functions:
 """
 
 import gsheet
+import logging
+
 import universal
+import secretkeys
 from data_sort import get_all_order_details
 
 
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets',
           'https://www.googleapis.com/auth/drive']
 
-def generate_report(client):
+
+
+def generate_report(SchwabClient, worksheet):
     """
     Generates a report of the account data from the Schwab client within the specified time range.
 
@@ -30,18 +35,32 @@ def generate_report(client):
         None
     """
     # fetch the account data from the last week
-    data = universal.fetch_orders_from_time_frame(client, "FILLED", 168)
+    data = universal.fetch_orders_from_time_frame(SchwabClient, "FILLED", 168)
 
     # sort and format the data
     formatted_data = [get_all_order_details(order) for order in data]
-    print(formatted_data)
+    logging.info(f"Formatted data: {formatted_data}")
+
     # store the data in Google Sheets
-    # gsheet.store_data_in_google_sheets(formatted_data)
-    # store the sheet values in the .env file (name of the sheet, sheet id, and local path for the credentials)
+    row = gsheet.get_next_empty_row(worksheet, 2)
+    gsheet.copy_headers(worksheet, f"A{row}")
+    for data in formatted_data:
+        row = gsheet.get_next_empty_row(worksheet, 2)
+        row_data = [
+            '',
+            str(data.get('underlying_symbol', '')),
+            str(data.get('description', '')),
+            str(data.get('price', '')),
+            str(data.get('price', ''))
+        ]
+        logging.info(f"Inserting data at row {row}: {row_data}")
+        gsheet.insert_data(worksheet, f"A{row}", [row_data])
 
     
 
 
 if __name__ == '__main__':
-    client = universal.create_client()
-    generate_report(client)
+    SchwabClient = universal.create_client()
+    Gclient = gsheet.connect_gsheets_account(secretkeys.get_a_secret("GOOGLE_SHEET_CREDS"))
+    worksheet = gsheet.connect_to_sheet(Gclient, "NBT Performance Tracker", "Sheet1")
+    generate_report(SchwabClient, worksheet)
